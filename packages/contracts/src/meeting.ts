@@ -35,6 +35,22 @@ export const signalPayloadSchema = z.discriminatedUnion('type', [
 	z.object({ type: z.literal('request-offer') }),
 ]);
 
+export const chatReactionSchema = z.enum(['😂', '😊', '😢', '👍', '👎', '🖕']);
+
+export const chatMessageSchema = z.object({
+	id: z.uuid(),
+	senderId: z.uuid(),
+	displayName: z.string().min(1).max(50),
+	content: z.string().min(1).max(1000),
+	createdAt: z.number(),
+});
+
+export const chatReactionEventSchema = z.object({
+	messageId: z.uuid(),
+	participantId: z.uuid(),
+	reaction: chatReactionSchema,
+});
+
 export const signalSchema = z.object({
 	id: z.uuid(),
 	senderId: z.uuid(),
@@ -43,6 +59,9 @@ export const signalSchema = z.object({
 	payload: signalPayloadSchema,
 });
 
+export type ChatReaction = z.infer<typeof chatReactionSchema>;
+export type ChatMessage = z.infer<typeof chatMessageSchema>;
+export type ChatReactionEvent = z.infer<typeof chatReactionEventSchema>;
 export type MediaState = z.infer<typeof mediaStateSchema>;
 export type JoinMeetingInput = z.infer<typeof joinMeetingSchema>;
 export type Participant = z.infer<typeof participantSchema>;

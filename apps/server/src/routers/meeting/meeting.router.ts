@@ -6,6 +6,8 @@ import {
 	participantIdValidator,
 	renameParticipantValidator,
 	sendSignalValidator,
+	sendChatMessageValidator,
+	reactToChatMessageValidator,
 } from './meeting.validator';
 
 const meetingRouter = router({
@@ -29,6 +31,13 @@ const meetingRouter = router({
 		.mutation(({ ctx, input }) =>
 			ctx.meetingService.acknowledgeSignals(input.id, input.messageIds),
 		),
+	sendChatMessage: publicProcedure
+		.input(sendChatMessageValidator)
+		.mutation(({ ctx, input }) => ctx.meetingService.sendChatMessage(input)),
+	reactToChatMessage: publicProcedure
+		.input(reactToChatMessageValidator)
+		.mutation(({ ctx, input }) => ctx.meetingService.reactToChatMessage(input)),
+
 });
 
 export default meetingRouter;

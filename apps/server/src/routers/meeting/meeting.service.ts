@@ -6,6 +6,8 @@ import {
 	PRESENCE_TIMEOUT_MS,
 	type Signal,
 	type SignalPayload,
+	type ChatMessage,
+	type ChatReactionEvent,
 } from '@meet/contracts/meeting';
 import { TRPCError } from '@trpc/server';
 
@@ -20,7 +22,9 @@ type SendSignalInput = {
 };
 type Event =
 	| { type: 'participants'; participants: Participants }
-	| { type: 'signal'; signal: Signal };
+	| { type: 'signal'; signal: Signal }
+	| { type: 'chat-message'; message: ChatMessage }
+	| { type: 'chat-reaction'; reaction: ChatReactionEvent };
 
 type Listener = (event: Event) => void;
 
@@ -37,6 +41,8 @@ export class MeetingService {
 		for (const listener of this.listeners) {
 			if (
 				event.type === 'participants' ||
+				event.type === 'chat-message' ||
+				event.type === 'chat-reaction' ||
 				listener.participantId === event.signal.recipientId
 			) {
 				try {
@@ -183,6 +189,30 @@ export class MeetingService {
 		const inbox = this.inboxes.get(id);
 		for (const messageId of messageIds) inbox?.delete(messageId);
 		return { acknowledged: true as const };
+	}
+
+	async sendChatMessage(input: { senderId: string; content: string }) {
+		this.prune();
+		const sender = this.participants[input.senderId];
+		if (!sender)
+			throw new TRPCError({ code: 'NOT_FOUND', message: 'The participant is no longer in the meeting.' });
+		const message: ChatMessage = {
+			id: crypto.randomUUID(),
+			senderId: sender.id,
+			displayName: sender.displayName,
+			content: input.content,
+			createdAt: Date.now(),
+		};
+		this.publish({ type: 'chat-message', message });
+		return message;
+	}
+
+	async reactToChatMessage(input: ChatReactionEvent) {
+		this.prune();
+		if (!this.participants[input.participantId])
+			throw new TRPCError({ code: 'NOT_FOUND', message: 'The participant is no longer in the meeting.' });
+		this.publish({ type: 'chat-reaction', reaction: input });
+		return { reacted: true as const };
 	}
 
 	/** Periodically evict expired participants even when no requests arrive. */

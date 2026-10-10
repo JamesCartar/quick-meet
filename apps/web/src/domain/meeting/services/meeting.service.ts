@@ -2,6 +2,8 @@ import type {
 	participantsSchema,
 	Signal,
 	SignalPayload,
+	ChatMessage,
+	ChatReactionEvent,
 } from '@meet/contracts/meeting';
 import { useMutation } from '@tanstack/react-query';
 import { serverUrl, trpc, trpcClient } from '@/common/api/trpc';
@@ -9,7 +11,9 @@ import { serverUrl, trpc, trpcClient } from '@/common/api/trpc';
 type Participants = ReturnType<typeof participantsSchema.parse>;
 type ServerMessage =
 	| { type: 'participants'; participants: Participants }
-	| { type: 'signal'; signal: Signal };
+	| { type: 'signal'; signal: Signal }
+	| { type: 'chat-message'; message: ChatMessage }
+	| { type: 'chat-reaction'; reaction: ChatReactionEvent };
 
 type SignalHandler = {
 	onSignal: (signal: Signal) => void;
@@ -27,6 +31,11 @@ class MeetingService {
 	private readonly connectionListeners = new Set<
 		(connected: boolean) => void
 	>();
+	private readonly chatListeners = new Set<{
+		onMessage: (message: ChatMessage) => void;
+		onReaction: (reaction: ChatReactionEvent) => void;
+		onError: (error: Error) => void;
+	}>();
 
 	useJoinMeeting = () => useMutation(trpc.meeting.join.mutationOptions());
 
@@ -43,6 +52,9 @@ class MeetingService {
 			payload,
 		});
 	}
+
+	sendChatMessage = trpcClient.meeting.sendChatMessage.mutate;
+	reactToChatMessage = trpcClient.meeting.reactToChatMessage.mutate;
 
 	acknowledgeSignal(id: string, messageId: string) {
 		return trpcClient.meeting.acknowledgeSignals.mutate({
@@ -74,6 +86,20 @@ class MeetingService {
 		this.sendSubscription(id);
 		return () => {
 			this.signalListeners.delete(id);
+			this.closeWhenUnused();
+		};
+	}
+
+	subscribeToChat(
+		onMessage: (message: ChatMessage) => void,
+		onReaction: (reaction: ChatReactionEvent) => void,
+		onError: (error: Error) => void,
+	) {
+		const listener = { onMessage, onReaction, onError };
+		this.chatListeners.add(listener);
+		this.ensureSocket();
+		return () => {
+			this.chatListeners.delete(listener);
 			this.closeWhenUnused();
 		};
 	}
@@ -112,6 +138,7 @@ class MeetingService {
 		socket.addEventListener('error', () => {
 			const error = new Error('The meeting realtime connection failed.');
 			for (const { onError } of this.signalListeners.values()) onError(error);
+			for (const { onError } of this.chatListeners) onError(error);
 		});
 		socket.addEventListener('close', () => {
 			this.socket = null;
@@ -132,6 +159,14 @@ class MeetingService {
 				this.signalListeners
 					.get(message.signal.recipientId)
 					?.onSignal(message.signal);
+				return;
+			}
+			if (message.type === 'chat-message') {
+				for (const listener of this.chatListeners) listener.onMessage(message.message);
+				return;
+			}
+			if (message.type === 'chat-reaction') {
+				for (const listener of this.chatListeners) listener.onReaction(message.reaction);
 			}
 		} catch {
 			const error = new Error(
@@ -139,6 +174,7 @@ class MeetingService {
 			);
 			for (const { onError } of this.participantListeners) onError(error);
 			for (const { onError } of this.signalListeners.values()) onError(error);
+			for (const { onError } of this.chatListeners) onError(error);
 		}
 	}
 
@@ -167,7 +203,8 @@ class MeetingService {
 		return (
 			this.participantListeners.size > 0 ||
 			this.signalListeners.size > 0 ||
-			this.connectionListeners.size > 0
+			this.connectionListeners.size > 0 ||
+			this.chatListeners.size > 0
 		);
 	}
 }

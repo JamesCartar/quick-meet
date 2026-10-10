@@ -1,18 +1,24 @@
-import { Users, Video } from 'lucide-react';
+import { MessageCircle, Users, Video } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { cn } from '@/common/lib/utils';
 import { Alert, AlertDescription } from '@/shared/components/ui/alert';
 import { TooltipProvider } from '@/shared/components/ui/tooltip';
 import { EditDisplayName } from '../components/EditDisplayName';
 import { JoinMeetingForm } from '../components/JoinMeetingForm';
+import { ChatSheet } from '../components/ChatSheet';
 import { MeetingControls } from '../components/MeetingControls';
 import { MeetingGrid } from '../components/MeetingGrid';
+import { ParticipantsSheet } from '../components/ParticipantsSheet';
 import { useMeeting } from '../hooks/useMeeting';
+import { useMeetingChat } from '../hooks/useMeetingChat';
 
 function MeetingPage() {
 	const meeting = useMeeting();
+	const chat = useMeetingChat(meeting.selfId);
 	const joined = meeting.status === 'joined' && Boolean(meeting.selfId);
 	const [elapsed, setElapsed] = useState(0);
+	const [participantsOpen, setParticipantsOpen] = useState(false);
+	const [chatOpen, setChatOpen] = useState(false);
 
 	useEffect(() => {
 		if (!joined) {
@@ -62,10 +68,23 @@ function MeetingPage() {
 								}
 								onSave={meeting.rename}
 							/>
-							<span className="flex items-center gap-2 text-muted-foreground">
+							<button
+								type="button"
+								className="flex items-center gap-2 rounded-md px-2 py-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+								aria-label={`Show ${meeting.participants.length} participants`}
+								onClick={() => setParticipantsOpen(true)}
+							>
 								<Users className="size-4" />
 								{meeting.participants.length}
-							</span>
+							</button>
+							<button
+								type="button"
+								className="flex items-center gap-2 rounded-md px-2 py-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+								aria-label="Open meeting chat"
+								onClick={() => setChatOpen(true)}
+							>
+								<MessageCircle className="size-4" />
+							</button>
 						</div>
 					) : (
 						<span className="text-xs text-muted-foreground">
@@ -114,6 +133,22 @@ function MeetingPage() {
 								</p>
 							)}
 						</footer>
+						<ParticipantsSheet
+							open={participantsOpen}
+							onOpenChange={setParticipantsOpen}
+							participants={meeting.participants}
+							selfId={meeting.selfId}
+						/>
+						<ChatSheet
+							open={chatOpen}
+							onOpenChange={setChatOpen}
+							messages={chat.messages}
+							participants={meeting.participants}
+							selfId={meeting.selfId}
+							onSend={chat.send}
+							onReact={chat.react}
+							error={chat.error}
+						/>
 					</>
 				) : (
 					<main className="flex flex-1 items-center justify-center">

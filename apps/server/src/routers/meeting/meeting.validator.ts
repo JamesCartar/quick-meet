@@ -2,6 +2,7 @@ import {
 	joinMeetingSchema,
 	mediaStateSchema,
 	signalPayloadSchema,
+	chatReactionSchema,
 } from '@meet/contracts/meeting';
 import { z } from 'zod';
 
@@ -19,6 +20,15 @@ export const sendSignalValidator = z.object({
 });
 export const acknowledgeSignalsValidator = participantIdValidator.extend({
 	messageIds: z.array(z.uuid()).min(1).max(64),
+});
+export const sendChatMessageValidator = z.object({
+	senderId: z.uuid(),
+	content: z.string().trim().min(1).max(1000),
+});
+export const reactToChatMessageValidator = z.object({
+	participantId: z.uuid(),
+	messageId: z.uuid(),
+	reaction: chatReactionSchema,
 });
 
 export type SendSignalInput = z.infer<typeof sendSignalValidator>;
