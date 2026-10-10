@@ -1,6 +1,6 @@
-# Meet
+# Quick Meet
 
-Meet is a small browser-based video meeting app for teams. Open the app, check your camera and microphone, and join a shared meeting—no account or room code required.
+Quick Meet is a small browser-based video meeting app for teams. Open the app, check your camera and microphone, and join a shared meeting—no account or room code required.
 
 Each meeting supports up to five participants. Audio and video use direct WebRTC peer connections. The Node.js API manages participant presence and WebRTC signaling over native WebSockets.
 
