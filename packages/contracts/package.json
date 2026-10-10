@@ -1,0 +1,17 @@
+{
+	"name": "@meet/contracts",
+	"private": true,
+	"type": "module",
+	"exports": {
+		"./meeting": "./src/meeting.ts"
+	},
+	"scripts": {
+		"check-types": "tsc --noEmit"
+	},
+	"dependencies": {
+		"zod": "^4.6.5"
+	},
+	"devDependencies": {
+		"typescript": "~7.0.2"
+	}
+}

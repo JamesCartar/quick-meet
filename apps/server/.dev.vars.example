@@ -1,0 +1,4 @@
+# Local development only. Never put the real value in this example file.
+# Run `pnpm --filter server firebase:credentials` to import the local JSON file.
+# For Cloudflare deployment, configure FIREBASE_SERVICE_ACCOUNT as a Worker secret.
+FIREBASE_SERVICE_ACCOUNT=''

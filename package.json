@@ -1,0 +1,28 @@
+{
+	"name": "meet",
+	"private": true,
+	"packageManager": "pnpm@11.15.1",
+	"engines": {
+		"node": "^22.22.2 || ^24.15.0 || >=26.0.0"
+	},
+	"scripts": {
+		"dev": "turbo dev",
+		"dev:web": "turbo dev --filter=web",
+		"dev:server": "turbo dev --filter=server",
+		"build": "turbo build",
+		"check-types": "turbo check-types",
+		"check-secrets": "node scripts/check-secrets.mjs",
+		"test": "pnpm -r test",
+		"lint": "biome check .",
+		"lint:fix": "biome check --write .",
+		"format": "biome format --write .",
+		"format:check": "biome format .",
+		"typegen": "pnpm --filter server typegen",
+		"deploy:web": "pnpm --filter web deploy",
+		"deploy:server": "pnpm --filter server deploy"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.5.15",
+		"turbo": "^2.11.7"
+	}
+}

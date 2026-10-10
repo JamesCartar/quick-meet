@@ -1,0 +1,11 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "meet-api",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-10-10",
+	"compatibility_flags": ["nodejs_compat"],
+	"vars": {
+		"ALLOWED_ORIGINS": "http://localhost:5173",
+		"FIREBASE_DATABASE_URL": "https://meet-8ee96-default-rtdb.asia-southeast1.firebasedatabase.app"
+	}
+}

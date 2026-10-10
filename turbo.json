@@ -1,0 +1,23 @@
+{
+	"$schema": "https://turbo.build/schema.json",
+	"tasks": {
+		"build": {
+			"dependsOn": ["^build"],
+			"inputs": ["$TURBO_DEFAULT$", ".env*"],
+			"env": ["VITE_SERVER_URL"],
+			"outputs": ["dist/**", "node_modules/.tmp/**"]
+		},
+		"check-types": {
+			"dependsOn": ["^check-types"],
+			"outputs": []
+		},
+		"web#check-types": {
+			"dependsOn": ["^check-types"],
+			"outputs": ["node_modules/.tmp/**"]
+		},
+		"dev": {
+			"cache": false,
+			"persistent": true
+		}
+	}
+}
