@@ -69,7 +69,7 @@ export function ParticipantsSheet({
 									return (
 										<li
 											key={participant.id}
-											className="flex items-center gap-3 rounded-lg px-2 py-3"
+											className="flex items-center gap-3 rounded-lg py-3"
 										>
 											<Avatar>
 												<AvatarFallback>

@@ -2,6 +2,7 @@ import type { MediaState } from '@meet/contracts/meeting';
 import {
 	Check,
 	ChevronUp,
+	MessageCircle,
 	Mic,
 	MicOff,
 	PhoneOff,
@@ -47,6 +48,7 @@ type Props = {
 	outputSelectionSupported: boolean;
 	onToggle: (kind: 'audio' | 'video') => Promise<void>;
 	onSelectDevice: (kind: MediaDeviceKind, deviceId: string) => Promise<void>;
+	onOpenChat: () => void;
 	onLeave: () => Promise<void>;
 };
 
@@ -109,6 +111,7 @@ export function MeetingControls({
 	outputSelectionSupported,
 	onToggle,
 	onSelectDevice,
+	onOpenChat,
 	onLeave,
 }: Props) {
 	const [audioMenuOpen, setAudioMenuOpen] = useState(false);
@@ -224,38 +227,57 @@ export function MeetingControls({
 					<TooltipContent>{cameraLabel}</TooltipContent>
 				</Tooltip>
 			</div>
-			<AlertDialog>
-				<AlertDialogTrigger asChild>
-					<Button
-						variant="destructive"
-						className="ml-1 h-12 rounded-full px-5 sm:h-11 [&_svg]:size-5"
-						aria-label="Leave"
-					>
-						<PhoneOff />
-						<span>Leave</span>
-					</Button>
-				</AlertDialogTrigger>
-				<AlertDialogContent className="dark p-6 text-sm data-[size=default]:max-w-[calc(100%-2rem)]">
-					<AlertDialogHeader className="place-items-start gap-2 text-left">
-						<AlertDialogTitle className="leading-none">
-							Leave the meeting?
-						</AlertDialogTitle>
-						<AlertDialogDescription>
-							You can rejoin at any time.
-						</AlertDialogDescription>
-					</AlertDialogHeader>
-					<AlertDialogFooter className="mx-0 mb-0 rounded-none border-0 bg-transparent p-0">
-						<AlertDialogCancel className="h-11">Stay in call</AlertDialogCancel>
-						<AlertDialogAction
-							variant="destructive"
-							className="h-11"
-							onClick={() => void onLeave()}
+			<div className="flex items-center rounded-full sm:bg-muted/70 sm:p-1">
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<Button
+							variant="secondary"
+							className="size-12 rounded-full sm:size-11 [&_svg]:size-5"
+							aria-label="Open meeting chat"
+							onClick={onOpenChat}
 						>
-							Leave meeting
-						</AlertDialogAction>
-					</AlertDialogFooter>
-				</AlertDialogContent>
-			</AlertDialog>
+							<MessageCircle />
+						</Button>
+					</TooltipTrigger>
+					<TooltipContent>Open meeting chat</TooltipContent>
+				</Tooltip>
+			</div>
+			<div className="flex items-center rounded-full sm:bg-muted/70 sm:p-1">
+				<AlertDialog>
+					<AlertDialogTrigger asChild>
+						<Button
+							variant="destructive"
+							className="h-12 rounded-full px-5 sm:h-11 [&_svg]:size-5"
+							aria-label="Leave"
+						>
+							<PhoneOff />
+							<span>Leave</span>
+						</Button>
+					</AlertDialogTrigger>
+					<AlertDialogContent className="dark p-6 text-sm data-[size=default]:max-w-[calc(100%-2rem)]">
+						<AlertDialogHeader className="place-items-start gap-2 text-left">
+							<AlertDialogTitle className="leading-none">
+								Leave the meeting?
+							</AlertDialogTitle>
+							<AlertDialogDescription>
+								You can rejoin at any time.
+							</AlertDialogDescription>
+						</AlertDialogHeader>
+						<AlertDialogFooter className="mx-0 mb-0 rounded-none border-0 bg-transparent p-0">
+							<AlertDialogCancel className="h-11">
+								Stay in call
+							</AlertDialogCancel>
+							<AlertDialogAction
+								variant="destructive"
+								className="h-11"
+								onClick={() => void onLeave()}
+							>
+								Leave meeting
+							</AlertDialogAction>
+						</AlertDialogFooter>
+					</AlertDialogContent>
+				</AlertDialog>
+			</div>
 		</div>
 	);
 }

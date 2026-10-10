@@ -1,8 +1,8 @@
-import { MessageCircle, Users, Video, VolumeX, X } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { Users, Video } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { cn } from '@/common/lib/utils';
-import { Alert, AlertDescription } from '@/shared/components/ui/alert';
-import { Button } from '@/shared/components/ui/button';
+import { Toaster } from '@/shared/components/ui/sonner';
 import { TooltipProvider } from '@/shared/components/ui/tooltip';
 import { ChatSheet } from '../components/ChatSheet';
 import { EditDisplayName } from '../components/EditDisplayName';
@@ -16,60 +16,6 @@ import { useMeetingChat } from '../hooks/useMeetingChat';
 const SPEAKER_DEVICE_WARNING =
 	'The selected speaker could not be used. Try another output device.';
 
-function SpeakerWarningToast({ onDismiss }: { onDismiss: () => void }) {
-	const [visible, setVisible] = useState(true);
-	const [fading, setFading] = useState(false);
-
-	useEffect(() => {
-		const fadeTimer = setTimeout(() => setFading(true), 2500);
-		const hideTimer = setTimeout(() => {
-			setVisible(false);
-			onDismiss();
-		}, 2800);
-		return () => {
-			clearTimeout(fadeTimer);
-			clearTimeout(hideTimer);
-		};
-	}, [onDismiss]);
-
-	if (!visible) return null;
-	return (
-		<div
-			role="status"
-			aria-live="polite"
-			className={cn(
-				'fixed top-20 right-4 z-50 flex w-[min(24rem,calc(100vw-2rem))] items-start gap-3 rounded-xl border bg-card/95 p-4 text-card-foreground shadow-xl backdrop-blur transition-[opacity,transform] duration-300 ease-out sm:top-[5.5rem]',
-				fading ? 'translate-y-2 opacity-0' : 'translate-y-0 opacity-100',
-			)}
-		>
-			<div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive">
-				<VolumeX className="size-4" />
-			</div>
-			<div className="min-w-0 flex-1">
-				<p className="text-sm font-semibold">Speaker unavailable</p>
-				<p className="mt-1 text-sm text-muted-foreground">
-					Try another output device.
-				</p>
-			</div>
-			<Button
-				variant="ghost"
-				size="icon-sm"
-				className="-mr-1 -mt-1 shrink-0 text-muted-foreground"
-				aria-label="Dismiss notification"
-				onClick={() => {
-					setFading(true);
-					setTimeout(() => {
-						setVisible(false);
-						onDismiss();
-					}, 300);
-				}}
-			>
-				<X />
-			</Button>
-		</div>
-	);
-}
-
 function MeetingPage() {
 	const meeting = useMeeting();
 	const chat = useMeetingChat(meeting.selfId);
@@ -77,19 +23,30 @@ function MeetingPage() {
 	const [elapsed, setElapsed] = useState(0);
 	const [participantsOpen, setParticipantsOpen] = useState(false);
 	const [chatOpen, setChatOpen] = useState(false);
-	const [speakerWarningDismissed, setSpeakerWarningDismissed] = useState(false);
-	const dismissSpeakerWarning = useCallback(
-		() => setSpeakerWarningDismissed(true),
-		[],
-	);
-	const hasSpeakerWarningToast =
-		meeting.warning === SPEAKER_DEVICE_WARNING && !speakerWarningDismissed;
 
 	useEffect(() => {
-		if (meeting.warning !== SPEAKER_DEVICE_WARNING) {
-			setSpeakerWarningDismissed(false);
-		}
-	}, [meeting.warning]);
+		if (!meeting.warning) return;
+		const speakerWarning = meeting.warning === SPEAKER_DEVICE_WARNING;
+		const title = speakerWarning
+			? 'Speaker unavailable'
+			: meeting.warning.toLowerCase().includes('camera')
+				? 'Camera unavailable'
+				: meeting.warning.toLowerCase().includes('microphone')
+					? 'Microphone unavailable'
+					: 'Meeting warning';
+		const toastId = `meeting-warning-${meeting.warningVersion}`;
+		toast.dismiss(`meeting-warning-${meeting.warningVersion - 1}`);
+		toast.error(title, {
+			id: toastId,
+			description: speakerWarning
+				? 'Try another output device.'
+				: meeting.warning,
+			duration: 3000,
+			closeButton: true,
+			className: '!p-3 !text-sm meeting-toast',
+			descriptionClassName: '!text-xs',
+		});
+	}, [meeting.warning, meeting.warningVersion]);
 
 	useEffect(() => {
 		if (!joined) {
@@ -153,6 +110,12 @@ function MeetingPage() {
 					joined && 'dark h-svh overflow-hidden',
 				)}
 			>
+				<Toaster
+					position="top-right"
+					theme={joined ? 'dark' : 'light'}
+					offset={{ top: 88, right: 16 }}
+					mobileOffset={{ top: 80, right: 8, left: 8 }}
+				/>
 				<header className="flex h-16 shrink-0 items-center sm:h-18 justify-between gap-4 border-b px-5 sm:px-8">
 					<div className="flex items-center gap-3">
 						<div className="flex size-9 items-center justify-center rounded-lg bg-foreground text-background">
@@ -160,8 +123,8 @@ function MeetingPage() {
 						</div>
 						<span className="text-lg font-semibold tracking-tight">meet</span>
 						{joined && (
-							<span className="ml-3 hidden border-l pl-5 text-sm text-muted-foreground sm:inline">
-								Team meeting
+							<span className="ml-3 hidden border-l pl-5 font-mono text-sm text-muted-foreground sm:inline">
+								{duration}
 							</span>
 						)}
 					</div>
@@ -184,14 +147,6 @@ function MeetingPage() {
 								<Users className="size-4" />
 								{meeting.participants.length}
 							</button>
-							<button
-								type="button"
-								className="flex items-center gap-2 rounded-md px-2 py-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-								aria-label="Open meeting chat"
-								onClick={() => setChatOpen(true)}
-							>
-								<MessageCircle className="size-4" />
-							</button>
 						</div>
 					) : (
 						<span className="text-xs text-muted-foreground">
@@ -203,14 +158,6 @@ function MeetingPage() {
 				{joined && meeting.selfId ? (
 					<>
 						<div className="flex min-h-0 flex-1 flex-col">
-							{meeting.warning &&
-								meeting.warning !== SPEAKER_DEVICE_WARNING && (
-									<div className="px-4 pt-3">
-										<Alert>
-											<AlertDescription>{meeting.warning}</AlertDescription>
-										</Alert>
-									</div>
-								)}
 							<main
 								aria-label="Meeting participants"
 								className="min-h-0 flex-1 p-2 sm:p-5"
@@ -228,9 +175,6 @@ function MeetingPage() {
 							</main>
 						</div>
 						<footer className="relative shrink-0 border-t px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 sm:px-8">
-							<div className="absolute left-8 top-6 hidden text-sm text-muted-foreground lg:block">
-								<span className="font-mono">{duration}</span>
-							</div>
 							<MeetingControls
 								media={meeting.media}
 								busy={meeting.mediaBusy}
@@ -243,6 +187,7 @@ function MeetingPage() {
 								outputSelectionSupported={outputSelectionSupported}
 								onToggle={meeting.toggleMedia}
 								onSelectDevice={meeting.selectDevice}
+								onOpenChat={() => setChatOpen(true)}
 								onLeave={meeting.leave}
 							/>
 							{failedConnection && (
@@ -257,12 +202,6 @@ function MeetingPage() {
 							participants={meeting.participants}
 							selfId={meeting.selfId}
 						/>
-						{hasSpeakerWarningToast && (
-							<SpeakerWarningToast
-								key={meeting.warning}
-								onDismiss={dismissSpeakerWarning}
-							/>
-						)}
 						<ChatSheet
 							open={chatOpen}
 							onOpenChange={setChatOpen}
@@ -283,7 +222,7 @@ function MeetingPage() {
 							media={meeting.media}
 							mediaBusy={meeting.mediaBusy}
 							joining={meeting.status === 'joining'}
-							error={meeting.error ?? meeting.warning}
+							error={meeting.error}
 							participantCount={meeting.participants.length}
 							left={meeting.status === 'left'}
 						/>

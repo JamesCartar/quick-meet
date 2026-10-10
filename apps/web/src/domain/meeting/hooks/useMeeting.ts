@@ -153,5 +153,6 @@ export function useMeeting() {
 		retryPeer: peers.retry,
 		connected: presence.connected,
 		warning: local.error ?? peers.error ?? presence.error,
+		warningVersion: local.warningVersion,
 	};
 }

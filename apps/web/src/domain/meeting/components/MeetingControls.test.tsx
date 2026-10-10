@@ -8,6 +8,7 @@ afterEach(cleanup);
 
 it('requires confirmation to leave and lets the user stay', async () => {
 	const onLeave = vi.fn().mockResolvedValue(undefined);
+	const onOpenChat = vi.fn();
 	const user = userEvent.setup();
 	render(
 		<TooltipProvider>
@@ -23,6 +24,7 @@ it('requires confirmation to leave and lets the user stay', async () => {
 				outputSelectionSupported={false}
 				onToggle={vi.fn().mockResolvedValue(undefined)}
 				onSelectDevice={vi.fn().mockResolvedValue(undefined)}
+				onOpenChat={onOpenChat}
 				onLeave={onLeave}
 			/>
 		</TooltipProvider>,
@@ -36,6 +38,10 @@ it('requires confirmation to leave and lets the user stay', async () => {
 	expect(
 		screen.queryByRole('button', { name: 'Choose speaker output' }),
 	).toBeNull();
+	const chatButton = screen.getByRole('button', { name: 'Open meeting chat' });
+	expect(chatButton.className).toContain('size-12');
+	await user.click(chatButton);
+	expect(onOpenChat).toHaveBeenCalledTimes(1);
 	await user.click(screen.getByRole('button', { name: 'Leave' }));
 	expect(screen.getByRole('alertdialog')).toBeTruthy();
 	expect(onLeave).not.toHaveBeenCalled();

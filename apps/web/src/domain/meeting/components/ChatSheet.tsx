@@ -107,7 +107,8 @@ export function ChatSheet({
 		if (!open) return;
 		const frame = requestAnimationFrame(() => {
 			if (chatViewportRef.current) {
-				chatViewportRef.current.scrollTop = chatViewportRef.current.scrollHeight;
+				chatViewportRef.current.scrollTop =
+					chatViewportRef.current.scrollHeight;
 			}
 		});
 		return () => cancelAnimationFrame(frame);
@@ -145,7 +146,7 @@ export function ChatSheet({
 					<ScrollArea className="min-h-0 flex-1" viewportRef={chatViewportRef}>
 						<div className="space-y-1 py-4 pl-2 pr-3 sm:pr-5">
 							{messages.length === 0 ? (
-								<div className="flex h-full flex-col items-center justify-center gap-2 text-center text-sm text-muted-foreground">
+								<div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center text-sm text-muted-foreground">
 									<MessageCircle className="size-8" />
 									<p>
 										No messages yet.

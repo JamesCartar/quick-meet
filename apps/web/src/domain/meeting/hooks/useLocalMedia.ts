@@ -31,6 +31,7 @@ export function useLocalMedia(previewEnabled: boolean) {
 	const [revision, setRevision] = useState(0);
 	const [busy, setBusy] = useState(previewEnabled);
 	const [error, setError] = useState<string | null>(null);
+	const [warningVersion, setWarningVersion] = useState(0);
 	const [devicePreferences, setDevicePreferences] =
 		useState(getDevicePreferences);
 	const devicePreferencesRef = useRef(devicePreferences);
@@ -66,6 +67,7 @@ export function useLocalMedia(previewEnabled: boolean) {
 						setError(
 							`${track.kind === 'audio' ? 'Microphone' : 'Camera'} access ended. Check your device and browser permissions to turn it back on.`,
 						);
+						setWarningVersion((version) => version + 1);
 					},
 					{ once: true },
 				);
@@ -101,6 +103,7 @@ export function useLocalMedia(previewEnabled: boolean) {
 			updateMedia(result.media);
 			watchTracks(result.stream);
 			setError(result.error);
+			if (result.error) setWarningVersion((version) => version + 1);
 			setRevision((value) => value + 1);
 			return result.stream;
 		},
@@ -136,6 +139,7 @@ export function useLocalMedia(previewEnabled: boolean) {
 				setError(
 					'The selected speaker could not be used. Try another output device.',
 				);
+				setWarningVersion((version) => version + 1);
 			}
 			return;
 		}
@@ -184,6 +188,7 @@ export function useLocalMedia(previewEnabled: boolean) {
 		} catch (failure) {
 			updateDevicePreferences(previous);
 			setError(getDeviceError(trackKind, failure));
+			setWarningVersion((version) => version + 1);
 		} finally {
 			busyRef.current = false;
 			if (mounted.current) setBusy(false);
@@ -234,6 +239,7 @@ export function useLocalMedia(previewEnabled: boolean) {
 			if (mounted.current) {
 				updateMedia({ ...mediaRef.current, [property]: false });
 				setError(getDeviceError(kind, failure));
+				setWarningVersion((version) => version + 1);
 			}
 		} finally {
 			busyRef.current = false;
@@ -303,6 +309,7 @@ export function useLocalMedia(previewEnabled: boolean) {
 				updateMedia(result.media);
 				watchTracks(result.stream);
 				setError(result.error);
+				if (result.error) setWarningVersion((version) => version + 1);
 				setRevision((value) => value + 1);
 			})
 			.finally(() => {
@@ -323,6 +330,7 @@ export function useLocalMedia(previewEnabled: boolean) {
 		revision,
 		busy,
 		error,
+		warningVersion,
 		prepare,
 		stop,
 		toggle,
