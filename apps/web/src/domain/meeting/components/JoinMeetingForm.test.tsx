@@ -44,8 +44,8 @@ it('restores the saved name and submits it with device preferences', async () =>
 		/>,
 	);
 	expect(screen.getByLabelText('Your name').getAttribute('value')).toBe('Alex');
-	await user.click(screen.getByRole('checkbox', { name: 'Microphone' }));
-	await user.click(screen.getByRole('checkbox', { name: 'Camera' }));
+	await user.click(screen.getByRole('button', { name: 'Turn on microphone' }));
+	await user.click(screen.getByRole('button', { name: 'Turn on camera' }));
 	await user.click(screen.getByRole('button', { name: 'Join meeting' }));
 	expect(onJoin).toHaveBeenCalledWith('Alex', {
 		microphoneEnabled: false,

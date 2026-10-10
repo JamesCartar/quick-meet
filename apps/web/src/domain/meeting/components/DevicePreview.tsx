@@ -1,16 +1,42 @@
 import type { MediaState } from '@meet/contracts/meeting';
-import { LoaderCircle, VideoOff } from 'lucide-react';
+import { LoaderCircle, Mic, MicOff, Video, VideoOff } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { cn } from '@/common/lib/utils';
+import { Button } from '@/shared/components/ui/button';
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from '@/shared/components/ui/tooltip';
 
 type Props = {
 	stream: MediaStream | null;
 	media: MediaState;
 	busy: boolean;
-	displayName: string;
+	controlsDisabled: boolean;
+	onToggleMedia: (kind: 'audio' | 'video') => Promise<void>;
 };
 
-export function DevicePreview({ stream, media, busy, displayName }: Props) {
+export function DevicePreview({
+	stream,
+	media,
+	busy,
+	controlsDisabled,
+	onToggleMedia,
+}: Props) {
+	const microphoneLabel = media.microphoneEnabled
+		? 'Mute microphone'
+		: 'Turn on microphone';
+	const cameraLabel = media.cameraEnabled
+		? 'Turn off camera'
+		: 'Turn on camera';
+	const controlClassName =
+		'size-12 rounded-full border p-0 shadow-sm disabled:opacity-100 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 sm:size-11 [&_svg]:size-5';
+	const enabledClassName =
+		'border-white/30 bg-zinc-950/80 text-white hover:bg-zinc-800';
+	const disabledClassName =
+		'border-red-500 bg-red-600 text-white hover:bg-red-700';
 	const videoRef = useRef<HTMLVideoElement>(null);
 	const cameraVisible =
 		media.cameraEnabled &&
@@ -29,7 +55,7 @@ export function DevicePreview({ stream, media, busy, displayName }: Props) {
 	}, [stream, media.cameraEnabled]);
 
 	return (
-		<div className="relative flex aspect-video items-center justify-center overflow-hidden rounded-2xl bg-zinc-900 text-zinc-100">
+		<div className="relative flex aspect-video min-h-56 w-full min-w-0 items-center justify-center overflow-hidden sm:min-h-60 rounded-2xl bg-zinc-900 text-zinc-100">
 			<video
 				ref={videoRef}
 				muted
@@ -42,8 +68,8 @@ export function DevicePreview({ stream, media, busy, displayName }: Props) {
 				)}
 			/>
 			{(!cameraVisible || busy) && (
-				<div className="relative flex flex-col items-center gap-4">
-					<div className="flex size-20 items-center justify-center rounded-full bg-zinc-800">
+				<div className="relative flex flex-col items-center gap-2">
+					<div className="flex size-14 items-center justify-center rounded-full bg-zinc-800 sm:size-20">
 						{busy ? (
 							<LoaderCircle className="size-8 animate-spin text-zinc-300" />
 						) : (
@@ -55,15 +81,59 @@ export function DevicePreview({ stream, media, busy, displayName }: Props) {
 					</p>
 				</div>
 			)}
-			<div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-3 bg-black/40 px-4 py-3 text-sm">
-				<span className="truncate font-medium">
-					{displayName.trim() || 'You'}
-				</span>
-				<span className="shrink-0 text-xs text-zinc-200">
-					{media.microphoneEnabled ? 'Mic on' : 'Mic off'} ·{' '}
-					{media.cameraEnabled ? 'Camera on' : 'Camera off'}
-				</span>
-			</div>
+			<TooltipProvider delayDuration={300}>
+				<fieldset
+					aria-label="Preview device controls"
+					className="absolute inset-x-0 bottom-3 flex min-w-0 justify-center gap-3 border-0 p-0"
+				>
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								type="button"
+								aria-label={microphoneLabel}
+								aria-pressed={media.microphoneEnabled}
+								disabled={controlsDisabled}
+								className={cn(
+									controlClassName,
+									media.microphoneEnabled
+										? enabledClassName
+										: disabledClassName,
+								)}
+								onClick={() => {
+									void onToggleMedia('audio');
+								}}
+							>
+								{media.microphoneEnabled ? <Mic /> : <MicOff />}
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent side="top" sideOffset={8}>
+							{microphoneLabel}
+						</TooltipContent>
+					</Tooltip>
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								type="button"
+								aria-label={cameraLabel}
+								aria-pressed={media.cameraEnabled}
+								disabled={controlsDisabled}
+								className={cn(
+									controlClassName,
+									media.cameraEnabled ? enabledClassName : disabledClassName,
+								)}
+								onClick={() => {
+									void onToggleMedia('video');
+								}}
+							>
+								{media.cameraEnabled ? <Video /> : <VideoOff />}
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent side="top" sideOffset={8}>
+							{cameraLabel}
+						</TooltipContent>
+					</Tooltip>
+				</fieldset>
+			</TooltipProvider>
 		</div>
 	);
 }

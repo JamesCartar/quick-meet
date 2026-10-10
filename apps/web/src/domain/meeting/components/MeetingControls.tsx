@@ -78,15 +78,16 @@ export function MeetingControls({ media, busy, onToggle, onLeave }: Props) {
 						<span>Leave</span>
 					</Button>
 				</AlertDialogTrigger>
-				<AlertDialogContent className="dark">
-					<AlertDialogHeader>
-						<AlertDialogTitle>Leave the meeting?</AlertDialogTitle>
+				<AlertDialogContent className="dark p-6 text-sm data-[size=default]:max-w-[calc(100%-2rem)]">
+					<AlertDialogHeader className="place-items-start gap-2 text-left">
+						<AlertDialogTitle className="leading-none">
+							Leave the meeting?
+						</AlertDialogTitle>
 						<AlertDialogDescription>
-							You’ll disconnect from everyone in the call. You can rejoin at any
-							time.
+							You can rejoin at any time.
 						</AlertDialogDescription>
 					</AlertDialogHeader>
-					<AlertDialogFooter>
+					<AlertDialogFooter className="mx-0 mb-0 rounded-none border-0 bg-transparent p-0">
 						<AlertDialogCancel className="h-11">Stay in call</AlertDialogCancel>
 						<AlertDialogAction
 							variant="destructive"

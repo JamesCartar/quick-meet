@@ -1,17 +1,11 @@
 import type { Participant } from '@meet/contracts/meeting';
-import {
-	LoaderCircle,
-	Mic,
-	MicOff,
-	MicVocal,
-	RefreshCw,
-	Volume2,
-} from 'lucide-react';
+import { LoaderCircle, RefreshCw, Volume2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/common/lib/utils';
 import { Avatar, AvatarFallback } from '@/shared/components/ui/avatar';
 import { Button } from '@/shared/components/ui/button';
 import { useSpeaking } from '../hooks/useSpeaking';
+import { ParticipantBadge } from './ParticipantBadge';
 
 type Props = {
 	participant: Participant;
@@ -141,32 +135,13 @@ export function ParticipantTile({
 					</Button>
 				</div>
 			)}
-			<div
-				className={cn(
-					'pointer-events-none absolute left-3 top-3 flex max-w-[calc(100%_-_1.5rem)] items-center gap-2 rounded-full border border-white/30 bg-zinc-100/80 px-3 py-1.5 text-sm text-zinc-900 shadow-sm backdrop-blur-md',
-					connecting && 'max-w-[calc(100%_-_4rem)]',
-				)}
-			>
-				<span className="shrink-0">
-					{!participant.microphoneEnabled ? (
-						<MicOff
-							className="size-4 text-zinc-600"
-							aria-label="Microphone off"
-						/>
-					) : speaking ? (
-						<MicVocal
-							className="size-4 text-emerald-700 motion-safe:animate-pulse"
-							aria-label="Speaking"
-						/>
-					) : (
-						<Mic className="size-4" aria-label="Microphone on" />
-					)}
-				</span>
-				<p className="truncate font-medium">
-					{participant.displayName}
-					{local && <span className="font-normal text-zinc-600"> (you)</span>}
-				</p>
-			</div>
+			<ParticipantBadge
+				displayName={participant.displayName}
+				microphoneEnabled={participant.microphoneEnabled}
+				speaking={speaking}
+				local={local}
+				connecting={connecting}
+			/>
 		</section>
 	);
 }

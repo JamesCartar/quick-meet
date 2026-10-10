@@ -3,13 +3,11 @@ import {
 	MAX_PARTICIPANTS,
 	type MediaState,
 } from '@meet/contracts/meeting';
-import { ArrowRight, Headphones, LoaderCircle } from 'lucide-react';
+import { ArrowRight, LoaderCircle } from 'lucide-react';
 import { useState } from 'react';
 import { useAppForm } from '@/shared/components/form';
 import { Alert, AlertDescription } from '@/shared/components/ui/alert';
 import { Button } from '@/shared/components/ui/button';
-import { Checkbox } from '@/shared/components/ui/checkbox';
-import { Label } from '@/shared/components/ui/label';
 import { getDefaultDisplayName, saveDisplayName } from '../lib/display-name';
 import { DevicePreview } from './DevicePreview';
 
@@ -49,25 +47,18 @@ export function JoinMeetingForm({
 	});
 
 	return (
-		<div className="mx-auto grid w-full max-w-4xl items-center gap-8 px-5 py-10 sm:px-8 md:grid-cols-[1.15fr_1fr] md:gap-12">
-			<div className="space-y-4">
-				<form.Subscribe selector={(state) => state.values.displayName}>
-					{(displayName) => (
-						<DevicePreview
-							stream={stream}
-							media={media}
-							busy={mediaBusy && !stream}
-							displayName={displayName}
-						/>
-					)}
-				</form.Subscribe>
-				<p className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-					<Headphones className="size-3.5" /> Headphones help keep your call
-					echo-free.
-				</p>
+		<div className="mx-auto grid w-full min-w-0 max-w-6xl grid-cols-1 items-center gap-8 px-5 py-10 sm:px-8 md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] md:gap-10 lg:gap-16">
+			<div className="min-w-0">
+				<DevicePreview
+					stream={stream}
+					media={media}
+					busy={mediaBusy && !stream}
+					controlsDisabled={mediaBusy || joining}
+					onToggleMedia={onToggleMedia}
+				/>
 			</div>
 			<form
-				className="space-y-6"
+				className="min-w-0 space-y-6"
 				onSubmit={(event) => {
 					event.preventDefault();
 					void form.handleSubmit();
@@ -91,7 +82,10 @@ export function JoinMeetingForm({
 						<AlertDescription>{error}</AlertDescription>
 					</Alert>
 				)}
-				<fieldset disabled={joining} className="space-y-5 disabled:opacity-60">
+				<fieldset
+					disabled={joining}
+					className="min-w-0 space-y-5 disabled:opacity-60"
+				>
 					<form.AppField
 						name="displayName"
 						listeners={{ onChange: ({ value }) => saveDisplayName(value) }}
@@ -105,63 +99,40 @@ export function JoinMeetingForm({
 							/>
 						)}
 					</form.AppField>
-					<div className="flex flex-wrap gap-5">
-						<Label className="flex min-h-11 items-center gap-2">
-							<Checkbox
-								checked={media.microphoneEnabled}
-								disabled={mediaBusy}
-								className="disabled:opacity-100"
-								onCheckedChange={() => {
-									void onToggleMedia('audio');
-								}}
-							/>
-							Microphone
-						</Label>
-						<Label className="flex min-h-11 items-center gap-2">
-							<Checkbox
-								checked={media.cameraEnabled}
-								disabled={mediaBusy}
-								className="disabled:opacity-100"
-								onCheckedChange={() => {
-									void onToggleMedia('video');
-								}}
-							/>
-							Camera
-						</Label>
-					</div>
 				</fieldset>
-				<form.Subscribe selector={(state) => state.canSubmit}>
-					{(canSubmit) => (
-						<Button
-							type="submit"
-							size="lg"
-							className="h-11 w-full"
-							disabled={
-								!canSubmit ||
-								joining ||
-								(mediaBusy && !stream) ||
-								participantCount >= MAX_PARTICIPANTS
-							}
-						>
-							{joining ? (
-								<LoaderCircle className="animate-spin" />
-							) : (
-								<ArrowRight />
-							)}
-							{joining
-								? 'Joining…'
-								: participantCount >= MAX_PARTICIPANTS
-									? 'Meeting is full'
-									: left
-										? 'Rejoin meeting'
-										: 'Join meeting'}
-						</Button>
-					)}
-				</form.Subscribe>
-				<p className="text-xs leading-5 text-muted-foreground">
-					No account or room code needed. Your name and device choices are
-					remembered on this device. You can also join with both devices off.
-				</p>
+				<div className="space-y-2">
+					<form.Subscribe selector={(state) => state.canSubmit}>
+						{(canSubmit) => (
+							<Button
+								type="submit"
+								size="lg"
+								className="h-11 w-full"
+								disabled={
+									!canSubmit ||
+									joining ||
+									(mediaBusy && !stream) ||
+									participantCount >= MAX_PARTICIPANTS
+								}
+							>
+								{joining ? (
+									<LoaderCircle className="animate-spin" />
+								) : (
+									<ArrowRight />
+								)}
+								{joining
+									? 'Joining…'
+									: participantCount >= MAX_PARTICIPANTS
+										? 'Meeting is full'
+										: left
+											? 'Rejoin meeting'
+											: 'Join meeting'}
+							</Button>
+						)}
+					</form.Subscribe>
+					<p className="text-xs leading-5 text-muted-foreground">
+						No account or room code needed.
+					</p>
+				</div>
 			</form>
 		</div>
 	);

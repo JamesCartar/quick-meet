@@ -42,7 +42,7 @@ function MeetingPage() {
 			>
 				<header className="flex h-16 shrink-0 items-center sm:h-18 justify-between gap-4 border-b px-5 sm:px-8">
 					<div className="flex items-center gap-3">
-						<div className="flex size-9 items-center justify-center rounded-xl bg-foreground text-background">
+						<div className="flex size-9 items-center justify-center rounded-lg bg-foreground text-background">
 							<Video className="size-5" />
 						</div>
 						<span className="text-lg font-semibold tracking-tight">meet</span>
@@ -101,7 +101,6 @@ function MeetingPage() {
 						<footer className="relative shrink-0 border-t px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 sm:px-8">
 							<div className="absolute left-8 top-6 hidden text-sm text-muted-foreground lg:block">
 								<span className="font-mono">{duration}</span>
-								<span className="mx-3">·</span>Team meeting
 							</div>
 							<MeetingControls
 								media={meeting.media}
