@@ -13,8 +13,7 @@
 		"check-types": "tsc --noEmit",
 		"test": "vitest run",
 		"deploy": "wrangler deploy --minify",
-		"typegen": "wrangler types --env-interface CloudflareBindings",
-		"firebase:credentials": "node scripts/import-firebase-credentials.mjs"
+		"typegen": "wrangler types --env-interface CloudflareBindings"
 	},
 	"dependencies": {
 		"@hono/trpc-server": "^0.4.2",

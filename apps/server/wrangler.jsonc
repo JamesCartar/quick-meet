@@ -4,8 +4,11 @@
 	"main": "src/index.ts",
 	"compatibility_date": "2026-10-10",
 	"compatibility_flags": ["nodejs_compat"],
+	"durable_objects": {
+		"bindings": [{ "name": "MEETING_ROOM", "class_name": "MeetingRoom" }]
+	},
+	"migrations": [{ "tag": "v1", "new_sqlite_classes": ["MeetingRoom"] }],
 	"vars": {
-		"ALLOWED_ORIGINS": "http://localhost:5173",
-		"FIREBASE_DATABASE_URL": "https://meet-8ee96-default-rtdb.asia-southeast1.firebasedatabase.app"
+		"ALLOWED_ORIGINS": "http://localhost:5173,https://meet-web.arjunyadav-hash.workers.dev,https://meet.heinhtet.com"
 	}
 }

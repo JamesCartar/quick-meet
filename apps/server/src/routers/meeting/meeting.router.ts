@@ -1,4 +1,5 @@
 import { publicProcedure, router, t } from '../../config/trpc';
+import { MeetingRoomService } from '../../providers/meeting-room.service';
 import MeetingService from './meeting.service';
 import {
 	acknowledgeSignalsValidator,
@@ -11,7 +12,12 @@ import {
 
 const withMeetingService = t.middleware(({ ctx, next }) =>
 	next({
-		ctx: { ...ctx, meetingService: new MeetingService(ctx.firebase) },
+		ctx: {
+			...ctx,
+			meetingService: new MeetingService(
+				new MeetingRoomService(ctx.meetingRoom),
+			),
+		},
 	}),
 );
 const meetingProcedure = publicProcedure.use(withMeetingService);

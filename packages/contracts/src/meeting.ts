@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
 export const MAX_PARTICIPANTS = 5;
-export const PRESENCE_TIMEOUT_MS = 60_000;
-export const HEARTBEAT_INTERVAL_MS = 15_000;
+export const PRESENCE_TIMEOUT_MS = 90_000;
+export const HEARTBEAT_INTERVAL_MS = 30_000;
 
 export const mediaStateSchema = z.object({
 	microphoneEnabled: z.boolean(),

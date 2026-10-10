@@ -1,10 +1,8 @@
 import type { Context as HonoContext } from 'hono';
-import { FirebaseService } from '../providers/firebase';
 
 export type Bindings = {
 	ALLOWED_ORIGINS: string;
-	FIREBASE_DATABASE_URL: string;
-	FIREBASE_SERVICE_ACCOUNT?: string;
+	MEETING_ROOM: unknown;
 };
 
 export function createContext({
@@ -14,7 +12,7 @@ export function createContext({
 }) {
 	return {
 		env: context.env,
-		firebase: new FirebaseService(context.env),
+		meetingRoom: context.env.MEETING_ROOM,
 	};
 }
 

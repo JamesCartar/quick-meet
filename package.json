@@ -18,8 +18,8 @@
 		"format": "biome format --write .",
 		"format:check": "biome format .",
 		"typegen": "pnpm --filter server typegen",
-		"deploy:web": "pnpm --filter web deploy",
-		"deploy:server": "pnpm --filter server deploy"
+		"deploy:web": "pnpm --filter web run deploy",
+		"deploy:server": "pnpm --filter server run deploy"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.5.15",

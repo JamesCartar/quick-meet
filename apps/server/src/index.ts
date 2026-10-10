@@ -3,11 +3,17 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { type Bindings, createContext } from './config/context';
+import { MeetingRoom } from './durable-objects/MeetingRoom';
 import { appRouter } from './routers';
 
 const app = new Hono<{ Bindings: Bindings }>();
 
 app.use(logger());
+app.get('/ws', (c) => {
+	const namespace = c.env.MEETING_ROOM as DurableObjectNamespace;
+	const id = namespace.idFromName('main');
+	return namespace.get(id).fetch(c.req.raw);
+});
 app.use(
 	'/*',
 	cors({
@@ -30,6 +36,8 @@ app.use(
 		createContext: (_opts, context) => createContext({ context }),
 	}),
 );
+
+export { MeetingRoom };
 
 export default {
 	fetch: app.fetch,

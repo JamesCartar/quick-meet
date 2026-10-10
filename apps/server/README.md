@@ -1,8 +1,8 @@
 # Server
 
-Hono on Cloudflare Workers with public tRPC meeting procedures for join, rename, heartbeat, leave, and signaling. `welcome.get` remains a health-check example. Meeting admission uses Firebase ETag transactions to enforce five participants.
+Hono on Cloudflare Workers with public tRPC meeting procedures for join, rename, heartbeat, leave, and signaling. `welcome.get` remains a health-check example. Meeting state and signaling are stored in a SQLite-backed Cloudflare Durable Object, which serializes room mutations and broadcasts updates over WebSockets.
 
-Endpoints delegate to domain services. Domain validators live alongside their routers/services. External integrations live under `src/providers`; Firebase is available as `ctx.firebase`.
+Endpoints delegate to domain services. Domain validators live alongside their routers/services. Cloudflare-specific room integration lives under `src/durable-objects` and `src/providers`.
 
 From the repository root:
 
@@ -17,10 +17,6 @@ pnpm deploy:server
 
 The local welcome endpoint is `http://localhost:8787/trpc/welcome.get`.
 
-Import Firebase credentials without displaying them:
+The Durable Object binding is declared in `wrangler.jsonc`. Run `pnpm typegen` after changing its bindings or migrations.
 
-```bash
-pnpm --filter server firebase:credentials
-```
-
-See the root README for secret handling and deployment. Never import the downloaded service-account JSON into server source or frontend code.
+See the root README for Cloudflare deployment instructions.

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-// Analyze existing audio locally; speaking activity is not written to Firebase.
+// Analyze existing audio locally; speaking activity is not sent to the room.
 export function useSpeaking(
 	stream: MediaStream | null,
 	microphoneEnabled: boolean,
