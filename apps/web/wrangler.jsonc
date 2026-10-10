@@ -1,8 +1,0 @@
-{
-	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "meet-web",
-	"compatibility_date": "2026-10-10",
-	"assets": {
-		"not_found_handling": "single-page-application"
-	}
-}

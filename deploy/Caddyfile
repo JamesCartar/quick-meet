@@ -1,0 +1,13 @@
+# Append these site blocks to /etc/caddy/Caddyfile on Lightsail.
+# Caddy obtains and renews public HTTPS certificates automatically.
+
+meet.heinhtet.com {
+	root * /www/wwwroot/meet-web
+	encode zstd gzip
+	try_files {path} /index.html
+	file_server
+}
+
+meet-api.heinhtet.com {
+	reverse_proxy 127.0.0.1:8787
+}

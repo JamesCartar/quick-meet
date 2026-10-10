@@ -16,8 +16,7 @@
 		"lint": "biome check .",
 		"lint:fix": "biome check --write .",
 		"format": "biome format --write .",
-		"format:check": "biome format .",
-		"deploy:web": "pnpm --filter web run deploy"
+		"format:check": "biome format ."
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.5.15",

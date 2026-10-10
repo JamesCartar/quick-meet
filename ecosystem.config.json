@@ -1,0 +1,24 @@
+{
+	"apps": [
+		{
+			"name": "meet-api",
+			"cwd": "apps/server",
+			"script": "dist/server.js",
+			"instances": 1,
+			"exec_mode": "fork",
+			"watch": false,
+			"env_dev": {
+				"NODE_ENV": "development",
+				"HOST": "127.0.0.1",
+				"PORT": 8787,
+				"ALLOWED_ORIGINS": "http://localhost:5173"
+			},
+			"env_production": {
+				"NODE_ENV": "production",
+				"HOST": "127.0.0.1",
+				"PORT": 8787,
+				"ALLOWED_ORIGINS": "https://<<yourdomain>>.com"
+			}
+		}
+	]
+}

@@ -8,8 +8,7 @@
 		"build": "tsc -b && vite build",
 		"check-types": "tsc -b",
 		"test": "vitest run",
-		"preview": "vite preview",
-		"deploy": "pnpm build && wrangler deploy"
+		"preview": "vite preview"
 	},
 	"dependencies": {
 		"@fontsource-variable/geist": "^5.3.0",
@@ -34,7 +33,6 @@
 		"zod": "^4.6.5"
 	},
 	"devDependencies": {
-		"@cloudflare/vite-plugin": "^1.63.1",
 		"@tanstack/router-plugin": "^1.168.42",
 		"@testing-library/react": "^16.3.3",
 		"@testing-library/user-event": "^14.6.7",
@@ -46,7 +44,6 @@
 		"server": "workspace:*",
 		"typescript": "~7.0.2",
 		"vite": "^8.3.0",
-		"vitest": "^5.0.3",
-		"wrangler": "^4.149.0"
+		"vitest": "^5.0.3"
 	}
 }

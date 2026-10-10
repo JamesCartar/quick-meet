@@ -17,8 +17,7 @@ pnpm dev:web
 pnpm --filter web check-types
 pnpm --filter web test
 pnpm --filter web build
-pnpm deploy:web
 pnpm dlx shadcn@latest add dialog --cwd apps/web
 ```
 
-See the root README and `docs/frontend-patterns.md` for configuration and conventions.
+The production build uses the public API URL in `apps/web/.env.production`. Serve `apps/web/dist` as static files on Lightsail; do not run the Vite development server in production. See the root README and `docs/frontend-patterns.md` for deployment and conventions.

@@ -63,7 +63,7 @@ Camera and microphone access require **HTTPS or localhost**. Opening the app thr
 | `pnpm check-secrets` | Checks staged/working files for sensitive paths and common credential patterns |
 | `pnpm build` | Builds the frontend and Node API bundle; does not deploy |
 | `pnpm --filter server start` | Starts the built API on Node.js |
-| `pnpm deploy:web` | Builds and deploys the frontend |
+| `pnpm --filter web build` | Builds static frontend files into `apps/web/dist` |
 
 Tests use in-memory room services and do not require external services. GitHub Actions runs the secret check, lint, type checks, tests, and build.
 
@@ -88,27 +88,42 @@ docs/frontend-patterns.md
 
 See [frontend patterns](docs/frontend-patterns.md) for the route, service, and form conventions.
 
-## Deploying the API to Lightsail
+## Deploying both apps to Lightsail
 
-1. On the Lightsail instance install Node.js 24.x and pnpm 11.15.1. Pull the repository and run `pnpm install --frozen-lockfile && pnpm --filter server build`.
-2. Run **one** API process with a process manager (for example systemd) using `pnpm --filter server start`. Set `PORT=8787`, `HOST=127.0.0.1`, and `ALLOWED_ORIGINS=https://meet.heinhtet.com` (comma-separate additional web origins). Restart it automatically on failure.
-3. Point `meet-api.heinhtet.com` to Lightsail. Configure HTTPS with a reverse proxy (Nginx/Caddy) forwarding `/trpc/*` and `/ws` to `127.0.0.1:8787`; enable WebSocket upgrades and a long read timeout. Example Nginx location inside the HTTPS `server` block:
+1. Give the Lightsail instance a **static IP**. Open inbound ports **80/443** in its firewall, but **not 8787**. Install Node.js 24.x, pnpm 11.15.1, PM2 and Caddy. Pull the repository onto the instance.
+2. From the repository root, build both apps:
 
-   ```nginx
-   location / {
-       proxy_pass http://127.0.0.1:8787;
-       proxy_http_version 1.1;
-       proxy_set_header Host $host;
-       proxy_set_header Upgrade $http_upgrade;
-       proxy_set_header Connection "upgrade";
-       proxy_read_timeout 3600s;
-   }
+   ```bash
+   pnpm install --frozen-lockfile
+   pnpm --filter server build
+   pnpm --filter web build
    ```
 
-   Install a valid origin TLS certificate. Do not expose port 8787 publicly. If using Cloudflare DNS proxy, use Full (strict) TLS to the origin.
-4. In `apps/web/.env.local` set `VITE_SERVER_URL=https://meet-api.heinhtet.com`, then deploy the existing Cloudflare web app with `pnpm deploy:web`. Test two browsers after both API and web are updated.
+   `apps/web/.env.production` supplies the public API URL (`https://meet-api.heinhtet.com`) at build time. Do not set a conflicting `VITE_SERVER_URL` in the shell. `apps/web/.env.local` can continue pointing to localhost for local development.
+3. Start **one** API process (not a PM2 cluster):
 
-The old Cloudflare Worker API and its Durable Object are no longer used. Existing room state does not migrate. The Node room is intentionally ephemeral: restarting the API ends active meetings. Run **one** instance; horizontal scaling needs a shared room backend.
+   ```bash
+   pm2 start ecosystem.config.json --env production
+   pm2 logs meet-api
+   pm2 save
+   pm2 startup
+   ```
+
+   Run the command that `pm2 startup` prints. The API listens only on `127.0.0.1:8787`. For updates, rebuild, then `pm2 restart ecosystem.config.json --env production --update-env`.
+4. In Cloudflare, remove **both** `meet.heinhtet.com` and `meet-api.heinhtet.com` from the old Workers' Custom Domains/Routes. Create **DNS-only** (grey-cloud) **A records** named `meet` and `meet-api` pointing to the Lightsail static IP. This lets Caddy obtain public Let's Encrypt certificates. Keep Cloudflare SSL/TLS mode at **Full (strict)** before optionally enabling the orange cloud after Caddy certificates are active.
+5. Publish the static frontend and append the Caddy site blocks:
+
+   ```bash
+   sudo mkdir -p /www/wwwroot/meet-web
+   sudo cp -a apps/web/dist/. /www/wwwroot/meet-web/
+   sudo tee -a /etc/caddy/Caddyfile < deploy/Caddyfile
+   sudo caddy validate --config /etc/caddy/Caddyfile
+   sudo systemctl reload caddy
+   ```
+
+   `deploy/Caddyfile` follows the existing server pattern: it serves the React SPA with deep-link fallback at `meet.heinhtet.com` and reverse-proxies HTTP/tRPC plus WebSockets at `meet-api.heinhtet.com` to the PM2 API. Check `https://meet-api.heinhtet.com/trpc/welcome.get`, then test a call at `https://meet.heinhtet.com` from two browsers. On later frontend builds, recopy `apps/web/dist/.` to `/www/wwwroot/meet-web/`.
+
+The old Cloudflare Workers and Durable Object are no longer used; room state does not migrate. The Node room is intentionally ephemeral: restarting the API ends active meetings. Run **one** instance; horizontal scaling needs a shared room backend.
 
 ## Limitations and security
 
