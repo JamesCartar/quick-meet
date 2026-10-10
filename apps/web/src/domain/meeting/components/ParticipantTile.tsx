@@ -13,6 +13,8 @@ type Props = {
 	local: boolean;
 	connectionState?: RTCPeerConnectionState;
 	onRetry: () => void;
+	audioOutputId?: string;
+	streamRevision?: number;
 };
 
 export function ParticipantTile({
@@ -21,8 +23,14 @@ export function ParticipantTile({
 	local,
 	connectionState,
 	onRetry,
+	audioOutputId = 'default',
+	streamRevision = 0,
 }: Props) {
-	const speaking = useSpeaking(stream, participant.microphoneEnabled);
+	const speaking = useSpeaking(
+		stream,
+		participant.microphoneEnabled,
+		streamRevision,
+	);
 	const videoRef = useRef<HTMLVideoElement>(null);
 	const [autoplayBlocked, setAutoplayBlocked] = useState(false);
 	const cameraVisible =
@@ -45,6 +53,7 @@ export function ParticipantTile({
 		.join('')
 		.toUpperCase();
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: track replacement increments this prop while preserving the MediaStream identity.
 	useEffect(() => {
 		const video = videoRef.current;
 		if (!video) return;
@@ -55,11 +64,19 @@ export function ParticipantTile({
 			void video.play().catch(() => {
 				if (active && !local) setAutoplayBlocked(true);
 			});
+		const mediaElement = video as HTMLMediaElement & {
+			setSinkId?: (deviceId: string) => Promise<void>;
+		};
+		if (!local && mediaElement.setSinkId) {
+			void mediaElement
+				.setSinkId(audioOutputId === 'default' ? '' : audioOutputId)
+				.catch(() => {});
+		}
 		return () => {
 			active = false;
 			video.srcObject = null;
 		};
-	}, [stream, local]);
+	}, [stream, local, audioOutputId, streamRevision]);
 
 	const enableAudio = async () => {
 		try {

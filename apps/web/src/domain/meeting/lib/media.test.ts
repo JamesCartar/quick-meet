@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { requestPreviewMedia } from './media';
+import { requestMedia, requestPreviewMedia } from './media';
 import { getMediaPreferences, saveMediaPreferences } from './media-preferences';
 
 class FakeStream {
@@ -21,6 +21,29 @@ class FakeStream {
 afterEach(() => {
 	vi.unstubAllGlobals();
 	localStorage.clear();
+});
+
+it('requests the selected microphone and camera devices', async () => {
+	const getUserMedia = vi.fn().mockResolvedValue(new FakeStream());
+	vi.stubGlobal('navigator', { mediaDevices: { getUserMedia } });
+	vi.stubGlobal('MediaStream', FakeStream);
+	await requestMedia(
+		{ microphoneEnabled: true, cameraEnabled: true },
+		{ audioInputId: 'mic-1', videoInputId: 'camera-1' },
+	);
+	expect(getUserMedia).toHaveBeenCalledWith({
+		audio: {
+			echoCancellation: true,
+			noiseSuppression: true,
+			deviceId: { exact: 'mic-1' },
+		},
+		video: {
+			width: { ideal: 640 },
+			height: { ideal: 360 },
+			frameRate: { ideal: 20, max: 24 },
+			deviceId: { exact: 'camera-1' },
+		},
+	});
 });
 
 it('uses an approved camera and microphone together', async () => {

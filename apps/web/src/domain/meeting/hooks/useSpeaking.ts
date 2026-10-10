@@ -4,9 +4,11 @@ import { useEffect, useState } from 'react';
 export function useSpeaking(
 	stream: MediaStream | null,
 	microphoneEnabled: boolean,
+	streamRevision = 0,
 ) {
 	const [speaking, setSpeaking] = useState(false);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: local track replacement increments this prop without replacing the MediaStream.
 	useEffect(() => {
 		setSpeaking(false);
 		if (!stream || !microphoneEnabled || !window.AudioContext) return;
@@ -58,7 +60,7 @@ export function useSpeaking(
 			analyser.disconnect();
 			void context.close().catch(() => {});
 		};
-	}, [stream, microphoneEnabled]);
+	}, [stream, microphoneEnabled, streamRevision]);
 
 	return microphoneEnabled && speaking;
 }

@@ -1,6 +1,13 @@
 import type { MediaState } from '@meet/contracts/meeting';
+import type { DevicePreferences } from './device-preferences';
 
-export async function requestMedia(options: MediaState) {
+export async function requestMedia(
+	options: MediaState,
+	devices: Pick<DevicePreferences, 'audioInputId' | 'videoInputId'> = {
+		audioInputId: 'default',
+		videoInputId: 'default',
+	},
+) {
 	if (!options.cameraEnabled && !options.microphoneEnabled)
 		return new MediaStream();
 	if (!navigator.mediaDevices?.getUserMedia) {
@@ -10,21 +17,33 @@ export async function requestMedia(options: MediaState) {
 	}
 	return navigator.mediaDevices.getUserMedia({
 		audio: options.microphoneEnabled
-			? { echoCancellation: true, noiseSuppression: true }
+			? {
+					echoCancellation: true,
+					noiseSuppression: true,
+					...(devices.audioInputId !== 'default' && {
+						deviceId: { exact: devices.audioInputId },
+					}),
+				}
 			: false,
 		video: options.cameraEnabled
 			? {
 					width: { ideal: 640 },
 					height: { ideal: 360 },
 					frameRate: { ideal: 20, max: 24 },
+					...(devices.videoInputId !== 'default' && {
+						deviceId: { exact: devices.videoInputId },
+					}),
 				}
 			: false,
 	});
 }
 
-export async function requestPreviewMedia(preferences: MediaState) {
+export async function requestPreviewMedia(
+	preferences: MediaState,
+	devices?: Pick<DevicePreferences, 'audioInputId' | 'videoInputId'>,
+) {
 	try {
-		const stream = await requestMedia(preferences);
+		const stream = await requestMedia(preferences, devices);
 		return { stream, media: preferences, error: null };
 	} catch {
 		// A combined request can fail because just one device is blocked/missing.
@@ -39,10 +58,13 @@ export async function requestPreviewMedia(preferences: MediaState) {
 			)
 				continue;
 			try {
-				const acquired = await requestMedia({
-					microphoneEnabled: kind === 'audio',
-					cameraEnabled: kind === 'video',
-				});
+				const acquired = await requestMedia(
+					{
+						microphoneEnabled: kind === 'audio',
+						cameraEnabled: kind === 'video',
+					},
+					devices,
+				);
 				acquired.getTracks().forEach((track) => {
 					stream.addTrack(track);
 				});

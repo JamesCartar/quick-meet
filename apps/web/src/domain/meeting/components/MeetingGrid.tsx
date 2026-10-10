@@ -13,6 +13,8 @@ type Props = {
 	remoteStreams: Record<string, MediaStream>;
 	connectionStates: Record<string, RTCPeerConnectionState>;
 	onRetry: (id: string) => void;
+	audioOutputId: string;
+	localStreamRevision: number;
 };
 
 export function MeetingGrid({
@@ -22,6 +24,8 @@ export function MeetingGrid({
 	remoteStreams,
 	connectionStates,
 	onRetry,
+	audioOutputId,
+	localStreamRevision,
 }: Props) {
 	const [mobilePortrait, setMobilePortrait] = useState(
 		() =>
@@ -59,6 +63,8 @@ export function MeetingGrid({
 								: (remoteStreams[participant.id] ?? null)
 						}
 						connectionState={connectionStates[participant.id]}
+						audioOutputId={audioOutputId}
+						streamRevision={participant.id === selfId ? localStreamRevision : 0}
 						onRetry={() => onRetry(participant.id)}
 					/>
 				</GridItem>

@@ -14,11 +14,28 @@ it('requires confirmation to leave and lets the user stay', async () => {
 			<MeetingControls
 				media={{ microphoneEnabled: true, cameraEnabled: true }}
 				busy={false}
+				audioInputs={[]}
+				videoInputs={[]}
+				audioOutputs={[]}
+				audioInputId="default"
+				videoInputId="default"
+				audioOutputId="default"
+				outputSelectionSupported={false}
 				onToggle={vi.fn().mockResolvedValue(undefined)}
+				onSelectDevice={vi.fn().mockResolvedValue(undefined)}
 				onLeave={onLeave}
 			/>
 		</TooltipProvider>,
 	);
+	expect(
+		screen.getByRole('button', { name: 'Audio device options' }),
+	).toBeTruthy();
+	expect(
+		screen.getByRole('button', { name: 'Camera device options' }),
+	).toBeTruthy();
+	expect(
+		screen.queryByRole('button', { name: 'Choose speaker output' }),
+	).toBeNull();
 	await user.click(screen.getByRole('button', { name: 'Leave' }));
 	expect(screen.getByRole('alertdialog')).toBeTruthy();
 	expect(onLeave).not.toHaveBeenCalled();

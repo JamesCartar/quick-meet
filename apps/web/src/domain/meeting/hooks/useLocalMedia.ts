@@ -1,6 +1,11 @@
 import type { MediaState } from '@meet/contracts/meeting';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+	type DevicePreferences,
+	getDevicePreferences,
+	saveDevicePreferences,
+} from '../lib/device-preferences';
+import {
 	getDeviceError,
 	requestMedia,
 	requestPreviewMedia,
@@ -26,6 +31,18 @@ export function useLocalMedia(previewEnabled: boolean) {
 	const [revision, setRevision] = useState(0);
 	const [busy, setBusy] = useState(previewEnabled);
 	const [error, setError] = useState<string | null>(null);
+	const [devicePreferences, setDevicePreferences] =
+		useState(getDevicePreferences);
+	const devicePreferencesRef = useRef(devicePreferences);
+	const [availableDevices, setAvailableDevices] = useState<MediaDeviceInfo[]>(
+		[],
+	);
+
+	const updateDevicePreferences = useCallback((next: DevicePreferences) => {
+		devicePreferencesRef.current = next;
+		setDevicePreferences(next);
+		saveDevicePreferences(next);
+	}, []);
 
 	const updateMedia = useCallback((next: MediaState) => {
 		mediaRef.current = next;
@@ -71,7 +88,10 @@ export function useLocalMedia(previewEnabled: boolean) {
 		async (options: MediaState) => {
 			if (streamRef.current) return streamRef.current;
 			const version = ++requestVersion.current;
-			const result = await requestPreviewMedia(options);
+			const result = await requestPreviewMedia(
+				options,
+				devicePreferencesRef.current,
+			);
 			if (version !== requestVersion.current) {
 				stopMedia(result.stream);
 				throw new DOMException('Media request cancelled', 'AbortError');
@@ -87,6 +107,89 @@ export function useLocalMedia(previewEnabled: boolean) {
 		[updateMedia, watchTracks],
 	);
 
+	const selectDevice = async (kind: MediaDeviceKind, deviceId: string) => {
+		const preferenceKey =
+			kind === 'audioinput'
+				? 'audioInputId'
+				: kind === 'videoinput'
+					? 'videoInputId'
+					: 'audioOutputId';
+		const previous = devicePreferencesRef.current;
+		const next = { ...previous, [preferenceKey]: deviceId };
+		if (kind === 'audiooutput') {
+			const targets = Array.from(
+				document.querySelectorAll<HTMLVideoElement>('video:not([muted])'),
+			);
+			const sinkId = deviceId === 'default' ? '' : deviceId;
+			try {
+				await Promise.all(
+					targets.map((target) => {
+						const mediaElement = target as HTMLMediaElement & {
+							setSinkId?: (id: string) => Promise<void>;
+						};
+						return mediaElement.setSinkId?.(sinkId);
+					}),
+				);
+				updateDevicePreferences(next);
+				setError(null);
+			} catch {
+				setError(
+					'The selected speaker could not be used. Try another output device.',
+				);
+			}
+			return;
+		}
+		updateDevicePreferences(next);
+
+		const current = streamRef.current;
+		const trackKind = kind === 'audioinput' ? 'audio' : 'video';
+		if (
+			!current
+				?.getTracks()
+				.some(
+					(track) => track.kind === trackKind && track.readyState === 'live',
+				) ||
+			busyRef.current
+		)
+			return;
+
+		const version = requestVersion.current;
+		busyRef.current = true;
+		setBusy(true);
+		setError(null);
+		try {
+			const acquired = await requestMedia(
+				{
+					microphoneEnabled: trackKind === 'audio',
+					cameraEnabled: trackKind === 'video',
+				},
+				next,
+			);
+			if (version !== requestVersion.current || streamRef.current !== current) {
+				stopMedia(acquired);
+				return;
+			}
+			const existing = current
+				.getTracks()
+				.filter((track) => track.kind === trackKind);
+			existing.forEach((track) => {
+				current.removeTrack(track);
+				track.stop();
+			});
+			acquired.getTracks().forEach((track) => {
+				current.addTrack(track);
+			});
+			watchTracks(current);
+			setRevision((value) => value + 1);
+		} catch (failure) {
+			updateDevicePreferences(previous);
+			setError(getDeviceError(trackKind, failure));
+		} finally {
+			busyRef.current = false;
+			if (mounted.current) setBusy(false);
+		}
+	};
+
 	const toggle = async (kind: 'audio' | 'video') => {
 		const current = streamRef.current;
 		if (!current || busyRef.current) return;
@@ -101,10 +204,13 @@ export function useLocalMedia(previewEnabled: boolean) {
 				.filter((track) => track.kind === kind);
 			const enabled = !existing.some((track) => track.readyState === 'live');
 			if (enabled) {
-				const acquired = await requestMedia({
-					microphoneEnabled: kind === 'audio',
-					cameraEnabled: kind === 'video',
-				});
+				const acquired = await requestMedia(
+					{
+						microphoneEnabled: kind === 'audio',
+						cameraEnabled: kind === 'video',
+					},
+					devicePreferencesRef.current,
+				);
 				if (version !== requestVersion.current) {
 					stopMedia(acquired);
 					return;
@@ -136,6 +242,30 @@ export function useLocalMedia(previewEnabled: boolean) {
 	};
 
 	useEffect(() => {
+		const mediaDevices = navigator.mediaDevices;
+		if (!mediaDevices?.enumerateDevices) return;
+		if (!stream) {
+			setAvailableDevices([]);
+			return;
+		}
+		let active = true;
+		const refresh = async () => {
+			try {
+				const list = await mediaDevices.enumerateDevices();
+				if (active) setAvailableDevices(list);
+			} catch {
+				if (active) setAvailableDevices([]);
+			}
+		};
+		void refresh();
+		mediaDevices.addEventListener?.('devicechange', refresh);
+		return () => {
+			active = false;
+			mediaDevices.removeEventListener?.('devicechange', refresh);
+		};
+	}, [stream]);
+
+	useEffect(() => {
 		mounted.current = true;
 		return () => {
 			mounted.current = false;
@@ -157,7 +287,10 @@ export function useLocalMedia(previewEnabled: boolean) {
 		busyRef.current = true;
 		setBusy(true);
 		// Share the initial request across React StrictMode's effect replay.
-		pendingPreview.current ??= requestPreviewMedia(mediaRef.current);
+		pendingPreview.current ??= requestPreviewMedia(
+			mediaRef.current,
+			devicePreferencesRef.current,
+		);
 		const request = pendingPreview.current;
 		void request
 			.then((result) => {
@@ -184,5 +317,17 @@ export function useLocalMedia(previewEnabled: boolean) {
 		};
 	}, [previewEnabled, updateMedia, watchTracks]);
 
-	return { stream, media, revision, busy, error, prepare, stop, toggle };
+	return {
+		stream,
+		media,
+		revision,
+		busy,
+		error,
+		prepare,
+		stop,
+		toggle,
+		devicePreferences,
+		availableDevices,
+		selectDevice,
+	};
 }
