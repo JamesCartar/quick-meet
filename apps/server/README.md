@@ -1,8 +1,6 @@
 # Server
 
-Hono on Cloudflare Workers with public tRPC meeting procedures for join, rename, heartbeat, leave, and signaling. `welcome.get` remains a health-check example. Meeting state and signaling are stored in a SQLite-backed Cloudflare Durable Object, which serializes room mutations and broadcasts updates over WebSockets.
-
-Endpoints delegate to domain services. Domain validators live alongside their routers/services. Cloudflare-specific room integration lives under `src/durable-objects` and `src/providers`.
+Hono on Node.js with tRPC mutations for joining, heartbeats, renaming, leaving, and signaling. `src/routers/meeting/meeting.service.ts` owns the single in-memory room, enforces its five-person cap, and publishes participant/signal events. `src/index.ts` wires the HTTP routes and native WebSocket endpoint; `src/server.ts` starts the Node server. The browser's existing WebSocket protocol is unchanged.
 
 From the repository root:
 
@@ -11,12 +9,7 @@ pnpm dev:server
 pnpm --filter server check-types
 pnpm --filter server test
 pnpm --filter server build
-pnpm typegen
-pnpm deploy:server
+pnpm --filter server start
 ```
 
-The local welcome endpoint is `http://localhost:8787/trpc/welcome.get`.
-
-The Durable Object binding is declared in `wrangler.jsonc`. Run `pnpm typegen` after changing its bindings or migrations.
-
-See the root README for Cloudflare deployment instructions.
+`PORT` defaults to `8787`, `HOST` defaults to `127.0.0.1`, and `ALLOWED_ORIGINS` defaults to `http://localhost:5173`. Production requires an HTTPS reverse proxy with WebSocket support, and a single Node process; state is lost on restart. See the root README for Lightsail deployment.

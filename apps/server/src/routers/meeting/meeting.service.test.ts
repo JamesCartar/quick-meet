@@ -1,48 +1,63 @@
-import { describe, expect, it, vi } from 'vitest';
-import type { MeetingRoomClient } from '../../providers/meeting-room.service';
-import MeetingService from './meeting.service';
+import { PRESENCE_TIMEOUT_MS } from '@meet/contracts/meeting';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { MeetingService } from './meeting.service';
 
-const input = {
+const createParticipant = () => ({
 	id: crypto.randomUUID(),
 	displayName: 'Teammate',
 	microphoneEnabled: true,
 	cameraEnabled: true,
-};
+});
 
-function createRoom(): MeetingRoomClient {
-	return {
-		join: vi.fn().mockResolvedValue({ participant: input, serverTime: 1 }),
-		heartbeat: vi.fn().mockResolvedValue({ serverTime: 2 }),
-		rename: vi.fn().mockResolvedValue({ participant: input, serverTime: 3 }),
-		leave: vi.fn().mockResolvedValue({ left: true }),
-		sendSignal: vi.fn().mockResolvedValue({ id: crypto.randomUUID() }),
-		acknowledgeSignals: vi.fn().mockResolvedValue({ acknowledged: true }),
-	};
-}
+afterEach(() => vi.useRealTimers());
 
 describe('MeetingService', () => {
-	it('delegates meeting operations to the Durable Object room', async () => {
-		const room = createRoom();
-		const service = new MeetingService(room);
-		await service.join(input);
-		await service.heartbeat({
-			id: input.id,
-			microphoneEnabled: false,
-			cameraEnabled: false,
-		});
-		await service.rename({ id: input.id, displayName: 'New name' });
-		await service.sendSignal({
-			senderId: input.id,
-			recipientId: crypto.randomUUID(),
+	it('enforces five active participants and evicts expired sessions', async () => {
+		vi.useFakeTimers();
+		const room = new MeetingService();
+		const inputs = Array.from({ length: 6 }, createParticipant);
+		for (const input of inputs.slice(0, 5)) await room.join(input);
+		await expect(room.join(inputs[5])).rejects.toThrow('full');
+		vi.advanceTimersByTime(PRESENCE_TIMEOUT_MS + 1);
+		await room.join(inputs[5]);
+		await expect(room.heartbeat(inputs[0])).rejects.toThrow('expired');
+	});
+
+	it('broadcasts presence and replays only unacknowledged signals to their recipient', async () => {
+		const room = new MeetingService();
+		const sender = createParticipant();
+		const recipient = createParticipant();
+		const first = vi.fn();
+		const second = vi.fn();
+		const subscription = room.subscribe(first);
+		await room.join(sender);
+		await room.join(recipient);
+		expect(first).toHaveBeenCalledWith(
+			expect.objectContaining({ type: 'participants' }),
+		);
+		const { id } = await room.sendSignal({
+			senderId: sender.id,
+			recipientId: recipient.id,
 			payload: { type: 'request-offer' },
 		});
-		await service.acknowledgeSignals(input.id, [crypto.randomUUID()]);
-		await service.leave(input.id);
-		expect(room.join).toHaveBeenCalledWith(input);
-		expect(room.heartbeat).toHaveBeenCalled();
-		expect(room.rename).toHaveBeenCalled();
-		expect(room.sendSignal).toHaveBeenCalled();
-		expect(room.acknowledgeSignals).toHaveBeenCalled();
-		expect(room.leave).toHaveBeenCalledWith(input.id);
+		expect(first).not.toHaveBeenCalledWith(
+			expect.objectContaining({ type: 'signal' }),
+		);
+		const receiver = room.subscribe(second);
+		receiver.identify(recipient.id);
+		expect(second).toHaveBeenCalledWith(
+			expect.objectContaining({
+				type: 'signal',
+				signal: expect.objectContaining({ id }),
+			}),
+		);
+		await room.acknowledgeSignals(recipient.id, [id]);
+		second.mockClear();
+		receiver.identify(recipient.id);
+		expect(second).not.toHaveBeenCalledWith(
+			expect.objectContaining({ type: 'signal' }),
+		);
+		subscription.close();
+		receiver.close();
 	});
 });

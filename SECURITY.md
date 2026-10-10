@@ -2,13 +2,13 @@
 
 ## Before pushing
 
-Never commit Firebase service-account JSON, private keys, `.dev.vars`, real `.env` files, or deployment tokens. Store local credentials in ignored files and production credentials in Cloudflare Worker secrets. Use `pnpm check-secrets` before committing; it checks staged and working files for common credential patterns, not every possible secret or Git history.
+Never commit Firebase service-account JSON, private keys, `.dev.vars`, real `.env` files, or deployment tokens. Store local credentials in ignored files and production credentials in Lightsail environment variables or a secrets manager. Use `pnpm check-secrets` before committing; it checks staged and working files for common credential patterns, not every possible secret or Git history.
 
 Ignoring a file does not remove it from Git's index or past commits. If a real credential was committed or shared, revoke/rotate it first and remove it from history before pushing. Deleting the current file is not enough. Do not include secret values in issues, screenshots, logs, or pull requests.
 
 Firebase web configuration (including its web API key) and the database URL are public identifiers. Database rules and backend authorization—not hiding web configuration—control access. Review API-key restrictions in Google Cloud for your deployed origins and required Firebase APIs.
 
-Enable GitHub secret scanning and push protection where available. CI does not need Firebase or Cloudflare production credentials. Keep deployment credentials out of pull-request workflows.
+Enable GitHub secret scanning and push protection where available. CI does not need production credentials. Keep deployment credentials out of pull-request workflows.
 
 ## Current prototype limitations
 

@@ -17,9 +17,7 @@
 		"lint:fix": "biome check --write .",
 		"format": "biome format --write .",
 		"format:check": "biome format .",
-		"typegen": "pnpm --filter server typegen",
-		"deploy:web": "pnpm --filter web run deploy",
-		"deploy:server": "pnpm --filter server run deploy"
+		"deploy:web": "pnpm --filter web run deploy"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.5.15",

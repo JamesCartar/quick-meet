@@ -1,6 +1,4 @@
-import { publicProcedure, router, t } from '../../config/trpc';
-import { MeetingRoomService } from '../../providers/meeting-room.service';
-import MeetingService from './meeting.service';
+import { publicProcedure, router } from '../../config/trpc';
 import {
 	acknowledgeSignalsValidator,
 	heartbeatValidator,
@@ -10,35 +8,23 @@ import {
 	sendSignalValidator,
 } from './meeting.validator';
 
-const withMeetingService = t.middleware(({ ctx, next }) =>
-	next({
-		ctx: {
-			...ctx,
-			meetingService: new MeetingService(
-				new MeetingRoomService(ctx.meetingRoom),
-			),
-		},
-	}),
-);
-const meetingProcedure = publicProcedure.use(withMeetingService);
-
 const meetingRouter = router({
-	join: meetingProcedure
+	join: publicProcedure
 		.input(joinMeetingValidator)
 		.mutation(({ ctx, input }) => ctx.meetingService.join(input)),
-	heartbeat: meetingProcedure
+	heartbeat: publicProcedure
 		.input(heartbeatValidator)
 		.mutation(({ ctx, input }) => ctx.meetingService.heartbeat(input)),
-	rename: meetingProcedure
+	rename: publicProcedure
 		.input(renameParticipantValidator)
 		.mutation(({ ctx, input }) => ctx.meetingService.rename(input)),
-	leave: meetingProcedure
+	leave: publicProcedure
 		.input(participantIdValidator)
 		.mutation(({ ctx, input }) => ctx.meetingService.leave(input.id)),
-	sendSignal: meetingProcedure
+	sendSignal: publicProcedure
 		.input(sendSignalValidator)
 		.mutation(({ ctx, input }) => ctx.meetingService.sendSignal(input)),
-	acknowledgeSignals: meetingProcedure
+	acknowledgeSignals: publicProcedure
 		.input(acknowledgeSignalsValidator)
 		.mutation(({ ctx, input }) =>
 			ctx.meetingService.acknowledgeSignals(input.id, input.messageIds),

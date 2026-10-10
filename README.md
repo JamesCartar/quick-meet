@@ -2,7 +2,7 @@
 
 A small video meeting app for teams. Open the app, check your camera and microphone, and join the shared call. There are no accounts, room codes, or separate rooms.
 
-Each meeting supports up to five people. Audio and video use direct WebRTC mesh connections; a Cloudflare Durable Object handles participant updates and signaling.
+Each meeting supports up to five people. Audio and video use direct WebRTC mesh connections; a Node.js Hono server handles participant updates and signaling over WebSockets.
 
 ## Features
 
@@ -16,8 +16,8 @@ Each meeting supports up to five people. Audio and video use direct WebRTC mesh 
 ## Stack
 
 - **Frontend:** React, Vite, TanStack Router/Query/Form, Tailwind CSS, and shadcn/ui.
-- **Backend:** Hono and tRPC on Cloudflare Workers.
-- **Realtime data:** Cloudflare Durable Objects with WebSockets.
+- **Backend:** Hono and tRPC on Node.js (AWS Lightsail).
+- **Realtime data:** Native WebSockets and a single in-memory meeting room.
 - **Media:** WebRTC mesh connections.
 - **Workspace:** pnpm and Turborepo, with TypeScript, Biome, and Vitest.
 
@@ -31,7 +31,7 @@ Use Node.js **24.15 or newer on the 24.x line** and **pnpm 11.15.1**. Run comman
 pnpm install --frozen-lockfile
 ```
 
-Cloudflare login is not required for local development. Wrangler runs the Durable Object locally.
+The backend runs on Node.js and needs no Firebase or Durable Object. If `apps/web/.env.local` points at a deployed API, change `VITE_SERVER_URL` to `http://localhost:8787` for local development.
 
 ### 2. Start the app
 
@@ -61,12 +61,11 @@ Camera and microphone access require **HTTPS or localhost**. Opening the app thr
 | `pnpm lint` | Checks formatting, imports, and lint rules |
 | `pnpm lint:fix` | Applies safe formatting and lint fixes |
 | `pnpm check-secrets` | Checks staged/working files for sensitive paths and common credential patterns |
-| `pnpm build` | Builds the frontend and dry-runs the API bundle; does not deploy |
-| `pnpm typegen` | Regenerates Cloudflare Worker binding types |
-| `pnpm deploy:server` | Deploys the API Worker |
+| `pnpm build` | Builds the frontend and Node API bundle; does not deploy |
+| `pnpm --filter server start` | Starts the built API on Node.js |
 | `pnpm deploy:web` | Builds and deploys the frontend |
 
-Tests use local Durable Object adapters and do not require external services. GitHub Actions runs the secret check, lint, type checks, tests, and build.
+Tests use in-memory room services and do not require external services. GitHub Actions runs the secret check, lint, type checks, tests, and build.
 
 ## Project structure
 
@@ -82,55 +81,34 @@ apps/
   server/
     src/
       config/               # Request context and tRPC setup
-      durable-objects/      # Durable Object room and WebSocket handling
-      providers/            # Durable Object service adapter
-      routers/meeting/      # Meeting router, service, and validators
+      routers/meeting/      # In-memory meeting service and validators
 packages/contracts/         # Shared schemas, types, and meeting constants
 docs/frontend-patterns.md
 ```
 
 See [frontend patterns](docs/frontend-patterns.md) for the route, service, and form conventions.
 
-## Deploying to Cloudflare
+## Deploying the API to Lightsail
 
-The API runs on a Worker, and the frontend uses Workers Static Assets. Both can use Cloudflare-provided domains.
+1. On the Lightsail instance install Node.js 24.x and pnpm 11.15.1. Pull the repository and run `pnpm install --frozen-lockfile && pnpm --filter server build`.
+2. Run **one** API process with a process manager (for example systemd) using `pnpm --filter server start`. Set `PORT=8787`, `HOST=127.0.0.1`, and `ALLOWED_ORIGINS=https://meet.heinhtet.com` (comma-separate additional web origins). Restart it automatically on failure.
+3. Point `meet-api.heinhtet.com` to Lightsail. Configure HTTPS with a reverse proxy (Nginx/Caddy) forwarding `/trpc/*` and `/ws` to `127.0.0.1:8787`; enable WebSocket upgrades and a long read timeout. Example Nginx location inside the HTTPS `server` block:
 
-1. Log in:
-
-   ```bash
-   pnpm --filter server exec wrangler login
+   ```nginx
+   location / {
+       proxy_pass http://127.0.0.1:8787;
+       proxy_http_version 1.1;
+       proxy_set_header Host $host;
+       proxy_set_header Upgrade $http_upgrade;
+       proxy_set_header Connection "upgrade";
+       proxy_read_timeout 3600s;
+   }
    ```
 
-   If the browser callback fails, use `pnpm --filter server exec wrangler login --device`.
+   Install a valid origin TLS certificate. Do not expose port 8787 publicly. If using Cloudflare DNS proxy, use Full (strict) TLS to the origin.
+4. In `apps/web/.env.local` set `VITE_SERVER_URL=https://meet-api.heinhtet.com`, then deploy the existing Cloudflare web app with `pnpm deploy:web`. Test two browsers after both API and web are updated.
 
-2. Deploy the API. This creates the `meet-api` Worker and its `MeetingRoom` Durable Object:
-
-   ```bash
-   pnpm --filter server run deploy
-   ```
-
-3. Set `VITE_SERVER_URL` to the API URL in `apps/web/.env.local` or your frontend build environment:
-
-   ```env
-   VITE_SERVER_URL=https://meet-api.example.workers.dev
-   ```
-
-   Use the base API URL, without `/trpc`. This is a build-time setting.
-
-4. Deploy the web app:
-
-   ```bash
-   pnpm --filter web run deploy
-   ```
-
-5. Add every frontend origin to `ALLOWED_ORIGINS` in `apps/server/wrangler.jsonc`. Origins are comma-separated. Then regenerate types and redeploy the API:
-
-   ```bash
-   pnpm typegen
-   pnpm --filter server run deploy
-   ```
-
-Open the frontend's HTTPS URL and test a call. Durable Object usage is subject to Cloudflare plan quotas.
+The old Cloudflare Worker API and its Durable Object are no longer used. Existing room state does not migrate. The Node room is intentionally ephemeral: restarting the API ends active meetings. Run **one** instance; horizontal scaling needs a shared room backend.
 
 ## Limitations and security
 

@@ -1,29 +1,64 @@
+import { upgradeWebSocket } from '@hono/node-server';
 import { trpcServer } from '@hono/trpc-server';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
-import { type Bindings, createContext } from './config/context';
-import { MeetingRoom } from './durable-objects/MeetingRoom';
+import { z } from 'zod';
+import { createContext } from './config/context';
 import { appRouter } from './routers';
+import { meetingService } from './routers/meeting/meeting.service';
 
-const app = new Hono<{ Bindings: Bindings }>();
+const app = new Hono();
+const allowedOrigins = () =>
+	(process.env.ALLOWED_ORIGINS ?? 'http://localhost:5173')
+		.split(',')
+		.map((origin) => origin.trim());
 
 app.use(logger());
-app.get('/ws', (c) => {
-	const namespace = c.env.MEETING_ROOM as DurableObjectNamespace;
-	const id = namespace.idFromName('main');
-	return namespace.get(id).fetch(c.req.raw);
-});
+app.get(
+	'/ws',
+	(c, next) => {
+		const origin = c.req.header('Origin');
+		if (!origin || !allowedOrigins().includes(origin))
+			return c.text('Origin not allowed', 403);
+		return next();
+	},
+	upgradeWebSocket(() => {
+		let subscription: ReturnType<typeof meetingService.subscribe> | undefined;
+		return {
+			onOpen(_event, ws) {
+				subscription = meetingService.subscribe((message) =>
+					ws.send(JSON.stringify(message)),
+				);
+			},
+			onMessage(event) {
+				try {
+					const data = z
+						.object({
+							type: z.literal('subscribe'),
+							participantId: z.uuid().optional(),
+						})
+						.safeParse(JSON.parse(String(event.data)));
+					if (data.success) subscription?.identify(data.data.participantId);
+				} catch {
+					/* Ignore malformed client messages. */
+				}
+			},
+			onClose() {
+				subscription?.close();
+			},
+			onError() {
+				subscription?.close();
+			},
+		};
+	}),
+);
+
 app.use(
-	'/*',
+	'/trpc/*',
 	cors({
-		origin: (origin, c) => {
-			const env = c.env as Bindings;
-			const allowedOrigins = env.ALLOWED_ORIGINS.split(',').map((value) =>
-				value.trim(),
-			);
-			return allowedOrigins.includes(origin) ? origin : undefined;
-		},
+		origin: (origin) =>
+			allowedOrigins().includes(origin) ? origin : undefined,
 		allowMethods: ['GET', 'POST', 'OPTIONS'],
 		allowHeaders: ['Content-Type'],
 	}),
@@ -33,12 +68,8 @@ app.use(
 	'/trpc/*',
 	trpcServer({
 		router: appRouter,
-		createContext: (_opts, context) => createContext({ context }),
+		createContext,
 	}),
 );
 
-export { MeetingRoom };
-
-export default {
-	fetch: app.fetch,
-} satisfies ExportedHandler<Bindings>;
+export default app;

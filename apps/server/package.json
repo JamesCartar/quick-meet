@@ -8,25 +8,27 @@
 		}
 	},
 	"scripts": {
-		"dev": "wrangler dev --port=8787",
-		"build": "pnpm check-types && wrangler deploy --dry-run --outdir dist",
+		"dev": "tsx watch src/server.ts",
+		"build": "pnpm check-types && tsup",
 		"check-types": "tsc --noEmit",
 		"test": "vitest run",
-		"deploy": "wrangler deploy --minify",
-		"typegen": "wrangler types --env-interface CloudflareBindings"
+		"start": "node dist/server.js"
 	},
 	"dependencies": {
+		"@hono/node-server": "^2.1.4",
 		"@hono/trpc-server": "^0.4.2",
 		"@meet/contracts": "workspace:*",
 		"@trpc/server": "11.19.0",
 		"hono": "^4.13.13",
-		"jose": "^6.2.12",
+		"ws": "^8.22.0",
 		"zod": "^4.6.5"
 	},
 	"devDependencies": {
 		"@types/node": "^24.19.1",
+		"@types/ws": "^8.18.2",
+		"tsup": "^8.5.1",
+		"tsx": "^4.23.15",
 		"typescript": "~7.0.2",
-		"vitest": "^5.0.3",
-		"wrangler": "^4.149.0"
+		"vitest": "^5.0.3"
 	}
 }

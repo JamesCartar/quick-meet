@@ -1,6 +1,6 @@
 # Web
 
-React + Vite with TanStack Router, Query, and Form; tRPC; a Cloudflare Durable Object WebSocket subscription; Tailwind v4; and CLI-generated shadcn components.
+React + Vite with TanStack Router, Query, and Form; tRPC; a native WebSocket subscription to the Hono API; Tailwind v4; and CLI-generated shadcn components.
 
 - Thin file-based routes: `src/routes`.
 - Feature pages/services: `src/domain`.
