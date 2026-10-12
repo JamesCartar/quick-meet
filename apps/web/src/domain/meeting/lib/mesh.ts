@@ -31,6 +31,7 @@ export class MeetingMesh {
 		private readonly localId: string,
 		private readonly localStream: MediaStream,
 		private readonly callbacks: MeshCallbacks,
+		private readonly turnServers: RTCIceServer[] = [],
 	) {}
 
 	reconcile(participants: Participant[]) {
@@ -130,6 +131,7 @@ export class MeetingMesh {
 						'stun:stun1.l.google.com:19302',
 					],
 				},
+				...this.turnServers,
 			],
 		});
 		const peer: Peer = {

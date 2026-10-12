@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto';
 import {
 	type JoinMeetingInput,
 	MAX_PARTICIPANTS,
@@ -85,6 +86,27 @@ export class MeetingService {
 			close: () => {
 				this.listeners.delete(listener);
 			},
+		};
+	}
+
+	getTurnCredentials() {
+		const serverUrls = (process.env.TURN_SERVER_URLS ?? '')
+			.split(',')
+			.map((url) => url.trim())
+			.filter(Boolean);
+		const secret = process.env.TURN_SHARED_SECRET?.trim();
+		if (serverUrls.length === 0 || !secret)
+			return { iceServers: [] as const };
+
+		const expiresAt = Math.floor(Date.now() / 1000) + 3600;
+		const username = `${expiresAt}:meeting`;
+		const credential = createHmac('sha1', secret)
+			.update(username)
+			.digest('base64');
+
+		return {
+			iceServers: [{ urls: serverUrls, username, credential }],
+			expiresAt: expiresAt * 1000,
 		};
 	}
 

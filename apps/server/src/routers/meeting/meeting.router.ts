@@ -11,6 +11,9 @@ import {
 } from './meeting.validator';
 
 const meetingRouter = router({
+	turnCredentials: publicProcedure.query(({ ctx }) =>
+		ctx.meetingService.getTurnCredentials(),
+	),
 	join: publicProcedure
 		.input(joinMeetingValidator)
 		.mutation(({ ctx, input }) => ctx.meetingService.join(input)),

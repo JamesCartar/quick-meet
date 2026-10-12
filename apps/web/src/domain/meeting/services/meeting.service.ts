@@ -15,6 +15,10 @@ type ServerMessage =
 	| { type: 'chat-message'; message: ChatMessage }
 	| { type: 'chat-reaction'; reaction: ChatReactionEvent };
 
+type TurnCredentials = Awaited<
+	ReturnType<typeof trpcClient.meeting.turnCredentials.query>
+>;
+
 type SignalHandler = {
 	onSignal: (signal: Signal) => void;
 	onError: (error: Error) => void;
@@ -31,6 +35,7 @@ class MeetingService {
 	private readonly connectionListeners = new Set<
 		(connected: boolean) => void
 	>();
+	private turnCredentialsPromise: Promise<TurnCredentials> | undefined;
 	private readonly chatListeners = new Set<{
 		onMessage: (message: ChatMessage) => void;
 		onReaction: (reaction: ChatReactionEvent) => void;
@@ -38,6 +43,11 @@ class MeetingService {
 	}>();
 
 	useJoinMeeting = () => useMutation(trpc.meeting.join.mutationOptions());
+
+	getTurnCredentials() {
+		this.turnCredentialsPromise ??= trpcClient.meeting.turnCredentials.query();
+		return this.turnCredentialsPromise;
+	}
 
 	useRenameParticipant = () =>
 		useMutation(trpc.meeting.rename.mutationOptions());
