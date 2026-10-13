@@ -28,9 +28,11 @@ WebRTC connects directly when possible. A TURN server is required as a relay for
 Configure the API with:
 
 ```env
-TURN_SERVER_URLS=turn:turn.example.com:3478?transport=udp,turn:turn.example.com:3478?transport=tcp
+TURN_SERVER_URLS=turn:192.0.2.1:3478?transport=udp,turn:192.0.2.1:3478?transport=tcp
 TURN_SHARED_SECRET=your-coturn-shared-secret
 ```
+
+`192.0.2.1` is a documentation-only dummy IP. Replace it with your TURN server's public IP or hostname. Deployment templates use example domains; replace those with your actual domains before deploying. Keep real environment values in ignored files or server-side configuration.
 
 The coturn server must use the same shared secret and expose port `3478` plus its configured relay port range over TCP/UDP. If using Cloudflare DNS, the TURN hostname must be DNS-only; Cloudflare Tunnel is not a replacement for a public TURN endpoint.
 
