@@ -4,10 +4,10 @@ import {
 	heartbeatValidator,
 	joinMeetingValidator,
 	participantIdValidator,
-	renameParticipantValidator,
-	sendSignalValidator,
-	sendChatMessageValidator,
 	reactToChatMessageValidator,
+	renameParticipantValidator,
+	sendChatMessageValidator,
+	sendSignalValidator,
 } from './meeting.validator';
 
 const meetingRouter = router({
@@ -40,7 +40,6 @@ const meetingRouter = router({
 	reactToChatMessage: publicProcedure
 		.input(reactToChatMessageValidator)
 		.mutation(({ ctx, input }) => ctx.meetingService.reactToChatMessage(input)),
-
 });
 
 export default meetingRouter;

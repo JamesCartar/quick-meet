@@ -1,9 +1,9 @@
 import type {
+	ChatMessage,
+	ChatReactionEvent,
 	participantsSchema,
 	Signal,
 	SignalPayload,
-	ChatMessage,
-	ChatReactionEvent,
 } from '@meet/contracts/meeting';
 import { useMutation } from '@tanstack/react-query';
 import { serverUrl, trpc, trpcClient } from '@/common/api/trpc';
@@ -192,11 +192,13 @@ class MeetingService {
 				return;
 			}
 			if (message.type === 'chat-message') {
-				for (const listener of this.chatListeners) listener.onMessage(message.message);
+				for (const listener of this.chatListeners)
+					listener.onMessage(message.message);
 				return;
 			}
 			if (message.type === 'chat-reaction') {
-				for (const listener of this.chatListeners) listener.onReaction(message.reaction);
+				for (const listener of this.chatListeners)
+					listener.onReaction(message.reaction);
 			}
 		} catch {
 			const error = new Error(

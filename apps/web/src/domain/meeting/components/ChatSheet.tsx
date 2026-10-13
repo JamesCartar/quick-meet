@@ -17,21 +17,28 @@ const reactions: ChatReaction[] = ['😂', '😊', '😢', '👍', '👎', '🖕
 const urlPattern = /(https?:\/\/[^\s]+)/g;
 
 function renderMessage(content: string) {
-	return content.split(urlPattern).map((part, index) =>
-		/^https?:\/\//.test(part) ? (
-			<a
-				key={`${part}-${index}`}
-				href={part}
-				target="_blank"
-				rel="noreferrer"
-				className="underline underline-offset-2 hover:opacity-80"
-			>
-				{part}
-			</a>
-		) : (
-			<span key={`${part}-${index}`}>{part}</span>
-		),
-	);
+	let position = 0;
+	return content
+		.split(urlPattern)
+		.filter(Boolean)
+		.map((part) => {
+			// Use the segment's position in the message, not its array index.
+			const key = `segment-${position}`;
+			position += part.length;
+			return /^https?:\/\//.test(part) ? (
+				<a
+					key={key}
+					href={part}
+					target="_blank"
+					rel="noreferrer"
+					className="underline underline-offset-2 hover:opacity-80"
+				>
+					{part}
+				</a>
+			) : (
+				<span key={key}>{part}</span>
+			);
+		});
 }
 
 type Props = {
@@ -74,16 +81,13 @@ export function ChatSheet({
 		[mention, participants],
 	);
 
-	useEffect(() => {
-		setActiveMentionIndex(0);
-	}, [mention]);
-
 	const send = async () => {
 		const content = draft.trim();
 		if (!content) return;
 		scrollAfterSend.current = true;
 		await onSend(content);
 		setDraft('');
+		setActiveMentionIndex(0);
 	};
 
 	useEffect(() => {
@@ -282,7 +286,10 @@ export function ChatSheet({
 						<Input
 							id="chat-message"
 							value={draft}
-							onChange={(event) => setDraft(event.target.value)}
+							onChange={(event) => {
+								setDraft(event.target.value);
+								setActiveMentionIndex(0);
+							}}
 							onKeyDown={(event) => {
 								if (
 									event.key === 'ArrowDown' &&
