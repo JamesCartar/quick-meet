@@ -19,6 +19,7 @@ type Props = {
 	localScreenStream: MediaStream;
 	remoteScreenStreams: Record<string, MediaStream>;
 	screenRevision: number;
+	onStopScreenShare: () => void;
 };
 
 export function MeetingGrid({
@@ -33,6 +34,7 @@ export function MeetingGrid({
 	localScreenStream,
 	remoteScreenStreams,
 	screenRevision,
+	onStopScreenShare,
 }: Props) {
 	const presenters = participants.filter(
 		(participant) => participant.screenSharing,
@@ -92,6 +94,7 @@ export function MeetingGrid({
 								: (remoteScreenStreams[participant.id] ?? null)
 						}
 						streamRevision={participant.id === selfId ? screenRevision : 0}
+						onStopSharing={onStopScreenShare}
 					/>
 				</GridItem>
 			))}

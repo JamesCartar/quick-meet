@@ -212,6 +212,7 @@ function MeetingPage() {
 									localScreenStream={meeting.localScreenStream}
 									remoteScreenStreams={meeting.remoteScreenStreams}
 									screenRevision={meeting.screenRevision}
+									onStopScreenShare={meeting.stopScreenShare}
 									connectionStates={meeting.connectionStates}
 									audioOutputId={meeting.devicePreferences.audioOutputId}
 									localStreamRevision={meeting.mediaRevision}

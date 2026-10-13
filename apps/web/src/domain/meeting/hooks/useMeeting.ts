@@ -168,6 +168,7 @@ export function useMeeting() {
 		toggleScreenShare: async () => {
 			if (sessionId.current) await screen.toggle();
 		},
+		stopScreenShare: screen.stop,
 		localScreenStream: screen.stream,
 		screenRevision: screen.revision,
 		remoteScreenStreams: peers.screenStreams,
