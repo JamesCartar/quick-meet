@@ -13,6 +13,42 @@ Each meeting supports up to five participants. Audio and video use direct WebRTC
 - Responsive layout for desktop and mobile.
 - Leave and rejoin support.
 
+## Preview
+
+Desktop screenshots at 1440 × 900, using sample participants, messages, and shared content.
+
+### Before you join
+
+Check your camera and microphone, set your display name, and join the call.
+
+![Join preview with camera and microphone controls](docs/screenshots/join-preview.png)
+
+### Three-person meeting
+
+![Desktop meeting gallery with three participants](docs/screenshots/meeting-three-participants.png)
+
+### Five-person meeting
+
+![Desktop meeting gallery with five participants](docs/screenshots/meeting-five-participants.png)
+
+### Screen sharing
+
+Share a screen alongside the participant gallery.
+
+![Five participants and a shared project board](docs/screenshots/screen-sharing.png)
+
+### Pinned shared screen
+
+Pin a presentation to focus on it while keeping participants in the sidebar.
+
+![Pinned shared screen with participant thumbnails and pagination](docs/screenshots/pinned-screen-share.png)
+
+### Meeting chat
+
+Send messages, mention teammates, and react without leaving the call.
+
+![Meeting chat with sample messages, a mention, and an emoji reaction](docs/screenshots/meeting-chat.png)
+
 ## Tech stack
 
 - React, Vite, TanStack Router/Query/Form, Tailwind CSS, and shadcn/ui.
@@ -28,11 +64,9 @@ WebRTC connects directly when possible. A TURN server is required as a relay for
 Configure the API with:
 
 ```env
-TURN_SERVER_URLS=turn:192.0.2.1:3478?transport=udp,turn:192.0.2.1:3478?transport=tcp
+TURN_SERVER_URLS=turn:turn.example.com:3478?transport=udp,turn:turn.example.com:3478?transport=tcp
 TURN_SHARED_SECRET=your-coturn-shared-secret
 ```
-
-`192.0.2.1` is a documentation-only dummy IP. Replace it with your TURN server's public IP or hostname. Deployment templates use example domains; replace those with your actual domains before deploying. Keep real environment values in ignored files or server-side configuration.
 
 The coturn server must use the same shared secret and expose port `3478` plus its configured relay port range over TCP/UDP. If using Cloudflare DNS, the TURN hostname must be DNS-only; Cloudflare Tunnel is not a replacement for a public TURN endpoint.
 
