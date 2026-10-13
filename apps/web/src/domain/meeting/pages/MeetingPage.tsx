@@ -1,4 +1,4 @@
-import { Users, Video } from 'lucide-react';
+import { Maximize, Minimize, Users, Video } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { cn } from '@/common/lib/utils';
@@ -12,6 +12,7 @@ import { MeetingGrid } from '../components/MeetingGrid';
 import { ParticipantsSheet } from '../components/ParticipantsSheet';
 import { useMeeting } from '../hooks/useMeeting';
 import { useMeetingChat } from '../hooks/useMeetingChat';
+import { useMeetingFullscreen } from '../hooks/useMeetingFullscreen';
 
 const SPEAKER_DEVICE_WARNING =
 	'The selected speaker could not be used. Try another output device.';
@@ -20,9 +21,15 @@ function MeetingPage() {
 	const meeting = useMeeting();
 	const chat = useMeetingChat(meeting.selfId);
 	const joined = meeting.status === 'joined' && Boolean(meeting.selfId);
+	const fullscreen = useMeetingFullscreen(joined);
 	const [elapsed, setElapsed] = useState(0);
 	const [participantsOpen, setParticipantsOpen] = useState(false);
 	const [chatOpen, setChatOpen] = useState(false);
+
+	useEffect(() => {
+		if (fullscreen.error)
+			toast.error('Fullscreen unavailable', { description: fullscreen.error });
+	}, [fullscreen.error]);
 
 	useEffect(() => {
 		if (!meeting.warning) return;
@@ -130,6 +137,29 @@ function MeetingPage() {
 					</div>
 					{joined ? (
 						<div className="flex items-center gap-2 text-sm sm:gap-4">
+							{fullscreen.supported && (
+								<button
+									type="button"
+									className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+									aria-label={
+										fullscreen.fullscreen
+											? 'Exit fullscreen'
+											: 'Enter fullscreen'
+									}
+									title={
+										fullscreen.fullscreen
+											? 'Exit fullscreen'
+											: 'Enter fullscreen'
+									}
+									onClick={() => void fullscreen.toggle()}
+								>
+									{fullscreen.fullscreen ? (
+										<Minimize className="size-4" />
+									) : (
+										<Maximize className="size-4" />
+									)}
+								</button>
+							)}
 							<EditDisplayName
 								displayName={
 									meeting.participants.find(
@@ -160,13 +190,28 @@ function MeetingPage() {
 						<div className="flex min-h-0 flex-1 flex-col">
 							<main
 								aria-label="Meeting participants"
-								className="min-h-0 flex-1 p-2 sm:p-5"
+								className="min-h-0 flex-1 select-none p-2 sm:p-5"
+								onDoubleClick={(event) => {
+									// Do not toggle fullscreen while interacting with tile controls.
+									if (
+										event.target instanceof Element &&
+										event.target.closest(
+											'button, a, input, select, textarea, [role="button"], [contenteditable="true"]',
+										)
+									)
+										return;
+									event.preventDefault();
+									void fullscreen.toggle();
+								}}
 							>
 								<MeetingGrid
 									participants={meeting.participants}
 									selfId={meeting.selfId}
 									localStream={meeting.localStream}
 									remoteStreams={meeting.remoteStreams}
+									localScreenStream={meeting.localScreenStream}
+									remoteScreenStreams={meeting.remoteScreenStreams}
+									screenRevision={meeting.screenRevision}
 									connectionStates={meeting.connectionStates}
 									audioOutputId={meeting.devicePreferences.audioOutputId}
 									localStreamRevision={meeting.mediaRevision}
@@ -178,6 +223,10 @@ function MeetingPage() {
 							<MeetingControls
 								media={meeting.media}
 								busy={meeting.mediaBusy}
+								screenSharing={meeting.screenSharing}
+								screenShareBusy={meeting.screenShareBusy}
+								screenShareSupported={meeting.screenShareSupported}
+								onToggleScreenShare={meeting.toggleScreenShare}
 								audioInputs={audioInputs}
 								videoInputs={videoInputs}
 								audioOutputs={audioOutputs}

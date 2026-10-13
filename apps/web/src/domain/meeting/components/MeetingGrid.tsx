@@ -5,6 +5,7 @@ import {
 } from '@thangdevalone/meeting-grid-layout-react';
 import { useEffect, useState } from 'react';
 import { ParticipantTile } from './ParticipantTile';
+import { ScreenShareTile } from './ScreenShareTile';
 
 type Props = {
 	participants: Participant[];
@@ -15,6 +16,9 @@ type Props = {
 	onRetry: (id: string) => void;
 	audioOutputId: string;
 	localStreamRevision: number;
+	localScreenStream: MediaStream;
+	remoteScreenStreams: Record<string, MediaStream>;
+	screenRevision: number;
 };
 
 export function MeetingGrid({
@@ -26,7 +30,14 @@ export function MeetingGrid({
 	onRetry,
 	audioOutputId,
 	localStreamRevision,
+	localScreenStream,
+	remoteScreenStreams,
+	screenRevision,
 }: Props) {
+	const presenters = participants.filter(
+		(participant) => participant.screenSharing,
+	);
+	const tileCount = participants.length + presenters.length;
 	const [mobilePortrait, setMobilePortrait] = useState(
 		() =>
 			window.matchMedia('(max-width: 639px) and (orientation: portrait)')
@@ -43,10 +54,8 @@ export function MeetingGrid({
 	return (
 		<GridContainer
 			className="size-full"
-			count={participants.length}
-			aspectRatio={
-				mobilePortrait ? (participants.length >= 4 ? '1:1' : '4:3') : '16:9'
-			}
+			count={tileCount}
+			aspectRatio={mobilePortrait ? (tileCount >= 4 ? '1:1' : '4:3') : '16:9'}
 			forceAspectRatio
 			gap={mobilePortrait ? 8 : 12}
 			layoutMode="gallery"
@@ -66,6 +75,23 @@ export function MeetingGrid({
 						audioOutputId={audioOutputId}
 						streamRevision={participant.id === selfId ? localStreamRevision : 0}
 						onRetry={() => onRetry(participant.id)}
+					/>
+				</GridItem>
+			))}
+			{presenters.map((participant, index) => (
+				<GridItem
+					key={`${participant.id}-screen`}
+					index={participants.length + index}
+				>
+					<ScreenShareTile
+						displayName={participant.displayName}
+						local={participant.id === selfId}
+						stream={
+							participant.id === selfId
+								? localScreenStream
+								: (remoteScreenStreams[participant.id] ?? null)
+						}
+						streamRevision={participant.id === selfId ? screenRevision : 0}
 					/>
 				</GridItem>
 			))}

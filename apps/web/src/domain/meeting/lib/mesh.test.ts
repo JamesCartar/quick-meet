@@ -23,7 +23,7 @@ class FakeConnection {
 	signalingState = 'stable';
 	connectionState = 'new';
 	remoteDescription: RTCSessionDescriptionInit | null = null;
-	ontrack = null;
+	ontrack: ((event: RTCTrackEvent) => void) | null = null;
 	onicecandidate = null;
 	onconnectionstatechange = null;
 	senders: {
@@ -74,6 +74,7 @@ class FakeConnection {
 			if (description.type === 'offer' && this.transceivers.length === 0) {
 				this.addTransceiver('audio');
 				this.addTransceiver('video');
+				this.addTransceiver('video');
 			}
 			this.signalingState =
 				description.type === 'offer' ? 'have-remote-offer' : 'stable';
@@ -113,6 +114,7 @@ function callbacks() {
 	return {
 		sendSignal: vi.fn().mockResolvedValue(undefined),
 		onStream: vi.fn(),
+		onScreenStream: vi.fn(),
 		onConnectionState: vi.fn(),
 		onError: vi.fn(),
 	};
@@ -163,7 +165,7 @@ it('buffers ICE until an offer is applied and answers afterward', async () => {
 		signal(lowId, highId, { type: 'offer', sdp: 'a=ice-ufrag:test' }),
 	);
 	expect(connection.addIceCandidate).toHaveBeenCalledWith(candidate);
-	expect(connection.senders).toHaveLength(2);
+	expect(connection.senders).toHaveLength(3);
 	expect(events.sendSignal).toHaveBeenCalledWith(lowId, {
 		type: 'answer',
 		sdp: 'a=ice-ufrag:test',
@@ -182,8 +184,91 @@ it('replaces tracks without creating another connection and closes departed peer
 	await mesh.syncLocalTracks();
 	expect(connection.senders[0].replaceTrack).toHaveBeenCalledWith(null);
 	expect(connection.senders[1].replaceTrack).toHaveBeenCalledWith(null);
+	expect(connection.senders[2].replaceTrack).toHaveBeenCalledWith(null);
 	mesh.reconcile([participant(highId)]);
 	expect(connection.close).toHaveBeenCalledTimes(1);
 	expect(events.onStream).toHaveBeenCalledWith(lowId, null);
+	expect(events.onScreenStream).toHaveBeenCalledWith(lowId, null);
 	mesh.close();
+});
+
+it('sends camera and screen independently without renegotiating, including late joiners', async () => {
+	const events = callbacks();
+	const local = new MediaStream();
+	const screen = new MediaStream();
+	const cameraTrack = {
+		id: 'camera',
+		kind: 'video',
+		readyState: 'live',
+	} as MediaStreamTrack;
+	const screenTrack = {
+		id: 'screen',
+		kind: 'video',
+		readyState: 'live',
+	} as MediaStreamTrack;
+	local.addTrack(cameraTrack);
+	const mesh = new MeetingMesh(highId, local, events, [], screen);
+	await mesh.receive(
+		signal(lowId, highId, { type: 'offer', sdp: 'a=ice-ufrag:test' }),
+	);
+	const connection = FakeConnection.instances[0];
+	screen.addTrack(screenTrack);
+	await mesh.syncLocalTracks();
+	expect(connection.senders[1].replaceTrack).toHaveBeenLastCalledWith(
+		cameraTrack,
+	);
+	expect(connection.senders[2].replaceTrack).toHaveBeenLastCalledWith(
+		screenTrack,
+	);
+	expect(connection.createOffer).not.toHaveBeenCalled();
+
+	const lateId = '00000000-0000-4000-8000-000000000002';
+	await mesh.receive(
+		signal(lateId, highId, { type: 'offer', sdp: 'a=ice-ufrag:test' }),
+	);
+	expect(
+		FakeConnection.instances[1].senders[2].replaceTrack,
+	).toHaveBeenLastCalledWith(screenTrack);
+	// Ending the screen track leaves the camera sender untouched.
+	Object.assign(screenTrack, { readyState: 'ended' });
+	await mesh.syncLocalTracks();
+	expect(connection.senders[2].replaceTrack).toHaveBeenLastCalledWith(null);
+	expect(connection.senders[1].replaceTrack).toHaveBeenLastCalledWith(
+		cameraTrack,
+	);
+	mesh.close();
+});
+
+it('routes incoming screen tracks into a separate stream and cleans up both streams', async () => {
+	const events = callbacks();
+	const mesh = new MeetingMesh(highId, new MediaStream(), events);
+	await mesh.receive(
+		signal(lowId, highId, { type: 'offer', sdp: 'a=ice-ufrag:test' }),
+	);
+	const connection = FakeConnection.instances[0];
+	const camera = {
+		id: 'camera',
+		kind: 'video',
+		stop: vi.fn(),
+	} as unknown as MediaStreamTrack;
+	const screen = {
+		id: 'screen',
+		kind: 'video',
+		stop: vi.fn(),
+	} as unknown as MediaStreamTrack;
+	connection.ontrack?.({
+		track: camera,
+		transceiver: connection.transceivers[1],
+	} as unknown as RTCTrackEvent);
+	connection.ontrack?.({
+		track: screen,
+		transceiver: connection.transceivers[2],
+	} as unknown as RTCTrackEvent);
+	const cameraStream = events.onStream.mock.calls[0][1] as MediaStream;
+	const screenStream = events.onScreenStream.mock.calls[0][1] as MediaStream;
+	expect(cameraStream.getTracks()).toEqual([camera]);
+	expect(screenStream.getTracks()).toEqual([screen]);
+	mesh.close();
+	expect(camera.stop).toHaveBeenCalledOnce();
+	expect(screen.stop).toHaveBeenCalledOnce();
 });

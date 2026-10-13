@@ -12,6 +12,38 @@ const createParticipant = () => ({
 afterEach(() => vi.useRealTimers());
 
 describe('MeetingService', () => {
+	it('broadcasts sharing state immediately and includes it in new subscriptions', async () => {
+		const room = new MeetingService();
+		const input = createParticipant();
+		const listener = vi.fn();
+		const subscription = room.subscribe(listener);
+		await room.join(input);
+		await room.heartbeat({ ...input, screenSharing: true });
+		expect(listener).toHaveBeenLastCalledWith({
+			type: 'participants',
+			participants: {
+				[input.id]: expect.objectContaining({ screenSharing: true }),
+			},
+		});
+		const newcomer = vi.fn();
+		const second = room.subscribe(newcomer);
+		expect(newcomer).toHaveBeenCalledWith({
+			type: 'participants',
+			participants: {
+				[input.id]: expect.objectContaining({ screenSharing: true }),
+			},
+		});
+		await room.heartbeat({ ...input, screenSharing: false });
+		expect(listener).toHaveBeenLastCalledWith({
+			type: 'participants',
+			participants: {
+				[input.id]: expect.objectContaining({ screenSharing: false }),
+			},
+		});
+		subscription.close();
+		second.close();
+	});
+
 	it('enforces five active participants and evicts expired sessions', async () => {
 		vi.useFakeTimers();
 		const room = new MeetingService();

@@ -8,11 +8,16 @@ export function usePeerConnections(
 	stream: MediaStream | null,
 	participants: Participant[],
 	mediaRevision: number,
+	screenStream: MediaStream,
+	screenRevision: number,
 ) {
 	const meshRef = useRef<MeetingMesh | null>(null);
 	const participantsRef = useRef(participants);
 	participantsRef.current = participants;
 	const [streams, setStreams] = useState<Record<string, MediaStream>>({});
+	const [screenStreams, setScreenStreams] = useState<
+		Record<string, MediaStream>
+	>({});
 	const [states, setStates] = useState<Record<string, RTCPeerConnectionState>>(
 		{},
 	);
@@ -20,6 +25,7 @@ export function usePeerConnections(
 
 	useEffect(() => {
 		setStreams({});
+		setScreenStreams({});
 		setStates({});
 		setError(null);
 		if (!id || !stream) return;
@@ -56,6 +62,15 @@ export function usePeerConnections(
 							return next;
 						});
 					},
+					onScreenStream: (peerId, remoteStream) => {
+						if (!active) return;
+						setScreenStreams((current) => {
+							const next = { ...current };
+							if (remoteStream) next[peerId] = remoteStream;
+							else delete next[peerId];
+							return next;
+						});
+					},
 					onConnectionState: (peerId, state) => {
 						if (active)
 							setStates((current) => ({ ...current, [peerId]: state }));
@@ -65,6 +80,7 @@ export function usePeerConnections(
 					},
 				},
 				turnServers,
+				screenStream,
 			);
 			meshRef.current = mesh;
 			mesh.reconcile(participantsRef.current);
@@ -98,7 +114,7 @@ export function usePeerConnections(
 			mesh?.close();
 			meshRef.current = null;
 		};
-	}, [id, stream]);
+	}, [id, stream, screenStream]);
 
 	useEffect(() => {
 		meshRef.current?.reconcile(participants);
@@ -106,16 +122,19 @@ export function usePeerConnections(
 
 	useEffect(() => {
 		void mediaRevision;
+		void screenRevision;
 		void meshRef.current
 			?.syncLocalTracks()
 			.catch(() =>
-				setError('Could not update your camera or microphone connection.'),
+				setError(
+					'Could not update your camera, microphone, or screen sharing connection.',
+				),
 			);
-	}, [mediaRevision]);
+	}, [mediaRevision, screenRevision]);
 
 	const retry = (peerId: string) => {
 		setError(null);
 		meshRef.current?.retry(peerId);
 	};
-	return { streams, states, error, retry };
+	return { streams, screenStreams, states, error, retry };
 }

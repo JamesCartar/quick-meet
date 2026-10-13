@@ -13,6 +13,7 @@ export function useMeetingPresence(
 	session: { participant: Participant; serverTime: number } | null,
 	media: MediaState,
 	onExpired: (message: string) => void,
+	screenSharing = false,
 ) {
 	const [records, setRecords] = useState<Participants>({});
 	const [now, setNow] = useState(Date.now());
@@ -53,6 +54,7 @@ export function useMeetingPresence(
 				const result = await meetingService.heartbeat({
 					id: session.participant.id,
 					...media,
+					screenSharing,
 				});
 				if (!disposed) {
 					lastSuccess.current = Date.now();
@@ -86,7 +88,7 @@ export function useMeetingPresence(
 			clearInterval(timer);
 			window.removeEventListener('online', heartbeat);
 		};
-	}, [session, media, onExpired]);
+	}, [session, media, onExpired, screenSharing]);
 
 	const participants = useMemo(
 		() =>

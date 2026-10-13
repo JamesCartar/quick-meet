@@ -7,6 +7,7 @@ import type {
 type MeshCallbacks = {
 	sendSignal: (recipientId: string, payload: SignalPayload) => Promise<unknown>;
 	onStream: (id: string, stream: MediaStream | null) => void;
+	onScreenStream?: (id: string, stream: MediaStream | null) => void;
 	onConnectionState: (id: string, state: RTCPeerConnectionState) => void;
 	onError: (message: string) => void;
 };
@@ -16,6 +17,8 @@ type Peer = {
 	stream: MediaStream;
 	audioSender: RTCRtpSender | null;
 	videoSender: RTCRtpSender | null;
+	screenSender: RTCRtpSender | null;
+	screenStream: MediaStream;
 	candidates: RTCIceCandidateInit[];
 	work: Promise<void>;
 	outgoing: Promise<void>;
@@ -32,6 +35,7 @@ export class MeetingMesh {
 		private readonly localStream: MediaStream,
 		private readonly callbacks: MeshCallbacks,
 		private readonly turnServers: RTCIceServer[] = [],
+		private readonly screenStream: MediaStream = new MediaStream(),
 	) {}
 
 	reconcile(participants: Participant[]) {
@@ -98,11 +102,18 @@ export class MeetingMesh {
 			this.localStream
 				.getVideoTracks()
 				.find((track) => track.readyState === 'live') ?? null;
+		const screen =
+			this.screenStream
+				.getVideoTracks()
+				.find((track) => track.readyState === 'live') ?? null;
 		await Promise.all(
-			[...this.peers.values()].map(async (peer) => {
-				await peer.audioSender?.replaceTrack(audio);
-				await peer.videoSender?.replaceTrack(video);
-			}),
+			[...this.peers.values()].map((peer) =>
+				this.enqueue(peer, async () => {
+					await peer.audioSender?.replaceTrack(audio);
+					await peer.videoSender?.replaceTrack(video);
+					await peer.screenSender?.replaceTrack(screen);
+				}),
+			),
 		);
 	}
 
@@ -138,6 +149,8 @@ export class MeetingMesh {
 			connection,
 			audioSender: null,
 			videoSender: null,
+			screenSender: null,
+			screenStream: new MediaStream(),
 			stream: new MediaStream(),
 			candidates: [],
 			work: Promise.resolve(),
@@ -149,9 +162,16 @@ export class MeetingMesh {
 		this.callbacks.onConnectionState(id, 'connecting');
 		connection.ontrack = (event) => {
 			if (this.closed) return;
-			if (!peer.stream.getTracks().some((track) => track.id === event.track.id))
-				peer.stream.addTrack(event.track);
-			this.callbacks.onStream(id, peer.stream);
+			// The negotiated slots are always audio, camera, then screen.
+			const videos = connection
+				.getTransceivers()
+				.filter((item) => item.receiver.track.kind === 'video');
+			const isScreen = event.transceiver === videos[1];
+			const stream = isScreen ? peer.screenStream : peer.stream;
+			if (!stream.getTracks().some((track) => track.id === event.track.id))
+				stream.addTrack(event.track);
+			if (isScreen) this.callbacks.onScreenStream?.(id, stream);
+			else this.callbacks.onStream(id, stream);
 		};
 		connection.onicecandidate = (event) => {
 			if (!event.candidate || this.closed) return;
@@ -203,26 +223,49 @@ export class MeetingMesh {
 	private async configureTracks(peer: Peer) {
 		// Answerers reuse the offer's transceivers; pre-creating them can leave
 		// local tracks attached to unused senders and produce one-way media.
-		for (const kind of ['audio', 'video'] as const) {
+		// Reserve screen video during the initial negotiation. Starting/stopping
+		// sharing then only replaces a track, including for late joiners/retries.
+		const slots = [
+			{
+				kind: 'audio',
+				index: 0,
+				stream: this.localStream,
+				sender: 'audioSender',
+			},
+			{
+				kind: 'video',
+				index: 0,
+				stream: this.localStream,
+				sender: 'videoSender',
+			},
+			{
+				kind: 'video',
+				index: 1,
+				stream: this.screenStream,
+				sender: 'screenSender',
+			},
+		] as const;
+		for (const slot of slots) {
 			const transceiver =
 				peer.connection
 					.getTransceivers()
-					.find((item) => item.receiver.track.kind === kind) ??
-				peer.connection.addTransceiver(kind, {
+					.filter((item) => item.receiver.track.kind === slot.kind)[
+					slot.index
+				] ??
+				peer.connection.addTransceiver(slot.kind, {
 					direction: 'sendrecv',
-					streams: [this.localStream],
+					streams: [slot.stream],
 				});
 			transceiver.direction = 'sendrecv';
-			transceiver.sender.setStreams(this.localStream);
+			transceiver.sender.setStreams(slot.stream);
 			await transceiver.sender.replaceTrack(
-				this.localStream
+				slot.stream
 					.getTracks()
 					.find(
-						(track) => track.kind === kind && track.readyState === 'live',
+						(track) => track.kind === slot.kind && track.readyState === 'live',
 					) ?? null,
 			);
-			peer[kind === 'audio' ? 'audioSender' : 'videoSender'] =
-				transceiver.sender;
+			peer[slot.sender] = transceiver.sender;
 		}
 	}
 
@@ -285,8 +328,12 @@ export class MeetingMesh {
 		peer.stream.getTracks().forEach((track) => {
 			track.stop();
 		});
+		peer.screenStream.getTracks().forEach((track) => {
+			track.stop();
+		});
 		this.peers.delete(id);
 		this.callbacks.onStream(id, null);
+		this.callbacks.onScreenStream?.(id, null);
 		this.callbacks.onConnectionState(id, 'closed');
 	}
 }

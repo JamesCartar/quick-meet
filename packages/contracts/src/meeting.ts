@@ -15,6 +15,7 @@ export const joinMeetingSchema = mediaStateSchema.extend({
 });
 
 export const participantSchema = joinMeetingSchema.extend({
+	screenSharing: z.boolean().optional(),
 	joinedAt: z.number(),
 	lastSeen: z.number(),
 });

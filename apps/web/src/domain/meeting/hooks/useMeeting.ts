@@ -6,6 +6,7 @@ import { meetingService } from '../services';
 import { useLocalMedia } from './useLocalMedia';
 import { useMeetingPresence } from './useMeetingPresence';
 import { usePeerConnections } from './usePeerConnections';
+import { useScreenShare } from './useScreenShare';
 
 export function useMeeting() {
 	const [session, setSession] = useState<{
@@ -16,6 +17,7 @@ export function useMeeting() {
 		'idle',
 	);
 	const local = useLocalMedia(status !== 'joined');
+	const screen = useScreenShare();
 	const joinMutation = meetingService.useJoinMeeting();
 	const renameMutation = meetingService.useRenameParticipant();
 	const [error, setError] = useState<string | null>(null);
@@ -27,6 +29,7 @@ export function useMeeting() {
 		joinVersion.current++;
 		const id = sessionId.current;
 		sessionId.current = null;
+		screen.stop();
 		local.stop();
 		setSession(null);
 		setStatus('left');
@@ -39,7 +42,7 @@ export function useMeeting() {
 				);
 			}
 		}
-	}, [local.stop]);
+	}, [local.stop, screen.stop]);
 
 	const onExpired = useCallback(
 		(message: string) => {
@@ -48,22 +51,33 @@ export function useMeeting() {
 		[leave],
 	);
 
-	const presence = useMeetingPresence(session, local.media, onExpired);
+	const presence = useMeetingPresence(
+		session,
+		local.media,
+		onExpired,
+		screen.sharing,
+	);
 	const participants = useMemo(() => {
 		if (!session) return presence.participants;
-		const self = { ...session.participant, ...local.media };
+		const self = {
+			...session.participant,
+			...local.media,
+			screenSharing: screen.sharing,
+		};
 		return [
 			self,
 			...presence.participants.filter(
 				(participant) => participant.id !== self.id,
 			),
 		];
-	}, [session, presence.participants, local.media]);
+	}, [session, presence.participants, local.media, screen.sharing]);
 	const peers = usePeerConnections(
 		session?.participant.id,
 		local.stream,
 		participants,
 		local.revision,
+		screen.stream,
+		screen.revision,
 	);
 
 	const join = async (displayName: string, options: MediaState) => {
@@ -148,11 +162,20 @@ export function useMeeting() {
 		devicePreferences: local.devicePreferences,
 		availableDevices: local.availableDevices,
 		selectDevice: local.selectDevice,
+		screenSharing: screen.sharing,
+		screenShareBusy: screen.busy,
+		screenShareSupported: screen.supported,
+		toggleScreenShare: async () => {
+			if (sessionId.current) await screen.toggle();
+		},
+		localScreenStream: screen.stream,
+		screenRevision: screen.revision,
+		remoteScreenStreams: peers.screenStreams,
 		remoteStreams: peers.streams,
 		connectionStates: peers.states,
 		retryPeer: peers.retry,
 		connected: presence.connected,
-		warning: local.error ?? peers.error ?? presence.error,
-		warningVersion: local.warningVersion,
+		warning: screen.error ?? local.error ?? peers.error ?? presence.error,
+		warningVersion: local.warningVersion + screen.warningVersion,
 	};
 }

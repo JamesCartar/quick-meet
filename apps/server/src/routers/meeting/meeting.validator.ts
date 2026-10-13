@@ -1,8 +1,8 @@
 import {
+	chatReactionSchema,
 	joinMeetingSchema,
 	mediaStateSchema,
 	signalPayloadSchema,
-	chatReactionSchema,
 } from '@meet/contracts/meeting';
 import { z } from 'zod';
 
@@ -12,7 +12,10 @@ export const renameParticipantValidator = joinMeetingSchema.pick({
 	displayName: true,
 });
 export const participantIdValidator = z.object({ id: z.uuid() });
-export const heartbeatValidator = mediaStateSchema.extend({ id: z.uuid() });
+export const heartbeatValidator = mediaStateSchema.extend({
+	id: z.uuid(),
+	screenSharing: z.boolean().default(false),
+});
 export const sendSignalValidator = z.object({
 	senderId: z.uuid(),
 	recipientId: z.uuid(),

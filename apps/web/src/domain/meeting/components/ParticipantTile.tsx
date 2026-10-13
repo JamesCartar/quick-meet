@@ -115,13 +115,11 @@ export function ParticipantTile({
 							{initials}
 						</AvatarFallback>
 					</Avatar>
-					<p className="text-xs text-zinc-400">
-						{connecting
-							? 'Connecting…'
-							: failed
-								? 'Connection interrupted'
-								: 'Camera off'}
-					</p>
+					{(connecting || failed) && (
+						<p className="text-xs text-zinc-400">
+							{connecting ? 'Connecting…' : 'Connection interrupted'}
+						</p>
+					)}
 				</div>
 			)}
 			{connecting && (

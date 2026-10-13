@@ -5,7 +5,9 @@ import {
 	MessageCircle,
 	Mic,
 	MicOff,
+	MonitorUp,
 	PhoneOff,
+	ScreenShareOff,
 	Video,
 	VideoOff,
 } from 'lucide-react';
@@ -48,6 +50,10 @@ type Props = {
 	outputSelectionSupported: boolean;
 	onToggle: (kind: 'audio' | 'video') => Promise<void>;
 	onSelectDevice: (kind: MediaDeviceKind, deviceId: string) => Promise<void>;
+	screenSharing: boolean;
+	screenShareBusy: boolean;
+	screenShareSupported: boolean;
+	onToggleScreenShare: () => Promise<void>;
 	onOpenChat: () => void;
 	onLeave: () => Promise<void>;
 };
@@ -112,10 +118,15 @@ export function MeetingControls({
 	onToggle,
 	onSelectDevice,
 	onOpenChat,
+	screenSharing,
+	screenShareBusy,
+	screenShareSupported,
+	onToggleScreenShare,
 	onLeave,
 }: Props) {
 	const [audioMenuOpen, setAudioMenuOpen] = useState(false);
 	const [cameraMenuOpen, setCameraMenuOpen] = useState(false);
+	const screenLabel = screenSharing ? 'Stop sharing screen' : 'Share screen';
 	const microphoneLabel = media.microphoneEnabled
 		? 'Mute microphone'
 		: 'Turn on microphone';
@@ -174,7 +185,7 @@ export function MeetingControls({
 					<TooltipTrigger asChild>
 						<Button
 							variant={media.microphoneEnabled ? 'secondary' : 'destructive'}
-							className="size-12 rounded-full sm:size-11 [&_svg]:size-5"
+							className="size-12 rounded-full max-[374px]:size-10 sm:size-11 [&_svg]:size-5"
 							aria-label={microphoneLabel}
 							aria-pressed={!media.microphoneEnabled}
 							disabled={busy}
@@ -215,7 +226,7 @@ export function MeetingControls({
 					<TooltipTrigger asChild>
 						<Button
 							variant={media.cameraEnabled ? 'secondary' : 'destructive'}
-							className="size-12 rounded-full sm:size-11 [&_svg]:size-5"
+							className="size-12 rounded-full max-[374px]:size-10 sm:size-11 [&_svg]:size-5"
 							aria-label={cameraLabel}
 							aria-pressed={!media.cameraEnabled}
 							disabled={busy}
@@ -231,8 +242,29 @@ export function MeetingControls({
 				<Tooltip>
 					<TooltipTrigger asChild>
 						<Button
+							variant={screenSharing ? 'default' : 'secondary'}
+							className="size-12 rounded-full max-[374px]:size-10 sm:size-11 [&_svg]:size-5"
+							aria-label={screenLabel}
+							aria-pressed={screenSharing}
+							disabled={screenShareBusy || !screenShareSupported}
+							onClick={() => void onToggleScreenShare()}
+						>
+							{screenSharing ? <ScreenShareOff /> : <MonitorUp />}
+						</Button>
+					</TooltipTrigger>
+					<TooltipContent>
+						{screenShareSupported
+							? screenLabel
+							: 'Screen sharing is not supported in this browser'}
+					</TooltipContent>
+				</Tooltip>
+			</div>
+			<div className="flex items-center rounded-full sm:bg-muted/70 sm:p-1">
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<Button
 							variant="secondary"
-							className="size-12 rounded-full sm:size-11 [&_svg]:size-5"
+							className="size-12 rounded-full max-[374px]:size-10 sm:size-11 [&_svg]:size-5"
 							aria-label="Open meeting chat"
 							onClick={onOpenChat}
 						>
@@ -247,7 +279,7 @@ export function MeetingControls({
 					<AlertDialogTrigger asChild>
 						<Button
 							variant="destructive"
-							className="h-12 rounded-full px-5 sm:h-11 [&_svg]:size-5"
+							className="h-12 rounded-full px-5 max-[374px]:h-10 max-[374px]:px-3 sm:h-11 [&_svg]:size-5"
 							aria-label="Leave"
 						>
 							<PhoneOff />

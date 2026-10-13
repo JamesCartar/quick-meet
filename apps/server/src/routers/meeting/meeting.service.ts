@@ -1,5 +1,7 @@
 import { createHmac } from 'node:crypto';
 import {
+	type ChatMessage,
+	type ChatReactionEvent,
 	type JoinMeetingInput,
 	MAX_PARTICIPANTS,
 	type Participant,
@@ -7,14 +9,12 @@ import {
 	PRESENCE_TIMEOUT_MS,
 	type Signal,
 	type SignalPayload,
-	type ChatMessage,
-	type ChatReactionEvent,
 } from '@meet/contracts/meeting';
 import { TRPCError } from '@trpc/server';
 
 type HeartbeatInput = Pick<
 	Participant,
-	'id' | 'microphoneEnabled' | 'cameraEnabled'
+	'id' | 'microphoneEnabled' | 'cameraEnabled' | 'screenSharing'
 >;
 type SendSignalInput = {
 	senderId: string;
@@ -95,8 +95,7 @@ export class MeetingService {
 			.map((url) => url.trim())
 			.filter(Boolean);
 		const secret = process.env.TURN_SHARED_SECRET?.trim();
-		if (serverUrls.length === 0 || !secret)
-			return { iceServers: [] as const };
+		if (serverUrls.length === 0 || !secret) return { iceServers: [] as const };
 
 		const expiresAt = Math.floor(Date.now() / 1000) + 3600;
 		const username = `${expiresAt}:meeting`;
@@ -125,6 +124,7 @@ export class MeetingService {
 		const serverTime = Date.now();
 		const participant = {
 			...input,
+			screenSharing: false,
 			joinedAt: serverTime,
 			lastSeen: serverTime,
 		};
@@ -217,7 +217,10 @@ export class MeetingService {
 		this.prune();
 		const sender = this.participants[input.senderId];
 		if (!sender)
-			throw new TRPCError({ code: 'NOT_FOUND', message: 'The participant is no longer in the meeting.' });
+			throw new TRPCError({
+				code: 'NOT_FOUND',
+				message: 'The participant is no longer in the meeting.',
+			});
 		const message: ChatMessage = {
 			id: crypto.randomUUID(),
 			senderId: sender.id,
@@ -232,7 +235,10 @@ export class MeetingService {
 	async reactToChatMessage(input: ChatReactionEvent) {
 		this.prune();
 		if (!this.participants[input.participantId])
-			throw new TRPCError({ code: 'NOT_FOUND', message: 'The participant is no longer in the meeting.' });
+			throw new TRPCError({
+				code: 'NOT_FOUND',
+				message: 'The participant is no longer in the meeting.',
+			});
 		this.publish({ type: 'chat-reaction', reaction: input });
 		return { reacted: true as const };
 	}
