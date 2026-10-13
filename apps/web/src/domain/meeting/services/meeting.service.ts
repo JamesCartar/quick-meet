@@ -36,6 +36,7 @@ class MeetingService {
 		(connected: boolean) => void
 	>();
 	private turnCredentialsPromise: Promise<TurnCredentials> | undefined;
+	private turnCredentialsExpiresAt = 0;
 	private readonly chatListeners = new Set<{
 		onMessage: (message: ChatMessage) => void;
 		onReaction: (reaction: ChatReactionEvent) => void;
@@ -45,7 +46,26 @@ class MeetingService {
 	useJoinMeeting = () => useMutation(trpc.meeting.join.mutationOptions());
 
 	getTurnCredentials() {
-		this.turnCredentialsPromise ??= trpcClient.meeting.turnCredentials.query();
+		if (Date.now() >= this.turnCredentialsExpiresAt)
+			this.turnCredentialsPromise = undefined;
+		if (!this.turnCredentialsPromise) {
+			// Share in-flight requests, but never keep expired credentials or failures.
+			this.turnCredentialsExpiresAt = Infinity;
+			this.turnCredentialsPromise = trpcClient.meeting.turnCredentials
+				.query()
+				.then((credentials) => {
+					this.turnCredentialsExpiresAt =
+						'expiresAt' in credentials && credentials.expiresAt
+							? credentials.expiresAt - 60_000
+							: Date.now() + 60_000;
+					return credentials;
+				})
+				.catch((error: unknown) => {
+					this.turnCredentialsPromise = undefined;
+					this.turnCredentialsExpiresAt = 0;
+					throw error;
+				});
+		}
 		return this.turnCredentialsPromise;
 	}
 

@@ -121,11 +121,25 @@ export class MeetingMesh {
 		const peer = this.peers.get(id);
 		if (!peer || this.closed) return;
 		peer.restarts++;
-		void this.enqueue(peer, () =>
-			this.localId < id
-				? this.offer(id, peer, true)
-				: this.send(id, peer, { type: 'request-offer' }),
-		).catch(() => {});
+		clearTimeout(peer.restartTimer);
+		peer.restartTimer = undefined;
+		this.scheduleRecovery(id, peer, 20_000);
+		void this.enqueue(peer, async () => {
+			if (this.localId >= id) {
+				await this.send(id, peer, { type: 'request-offer' });
+			} else if (
+				peer.connection.signalingState === 'have-local-offer' &&
+				peer.connection.localDescription
+			) {
+				// A missing answer must not make retries silently do nothing.
+				await this.send(id, peer, {
+					type: 'offer',
+					sdp: peer.connection.localDescription.sdp,
+				});
+			} else {
+				await this.offer(id, peer, true);
+			}
+		}).catch(() => {});
 	}
 
 	close() {
@@ -160,6 +174,7 @@ export class MeetingMesh {
 		};
 		this.peers.set(id, peer);
 		this.callbacks.onConnectionState(id, 'connecting');
+		this.scheduleRecovery(id, peer, 20_000);
 		connection.ontrack = (event) => {
 			if (this.closed) return;
 			// The negotiated slots are always audio, camera, then screen.
@@ -170,8 +185,11 @@ export class MeetingMesh {
 			const stream = isScreen ? peer.screenStream : peer.stream;
 			if (!stream.getTracks().some((track) => track.id === event.track.id))
 				stream.addTrack(event.track);
-			if (isScreen) this.callbacks.onScreenStream?.(id, stream);
-			else this.callbacks.onStream(id, stream);
+			// Publish a new wrapper when tracks arrive in separate events so React
+			// refreshes playback and the speaking analyser even if video arrives first.
+			const snapshot = new MediaStream(stream.getTracks());
+			if (isScreen) this.callbacks.onScreenStream?.(id, snapshot);
+			else this.callbacks.onStream(id, snapshot);
 		};
 		connection.onicecandidate = (event) => {
 			if (!event.candidate || this.closed) return;
@@ -195,21 +213,35 @@ export class MeetingMesh {
 				peer.restartTimer = undefined;
 				peer.restarts = 0;
 			}
-			if (
-				(state === 'disconnected' || state === 'failed') &&
-				!peer.restartTimer &&
-				peer.restarts < 2
-			) {
-				peer.restartTimer = setTimeout(
-					() => {
-						peer.restartTimer = undefined;
-						this.retry(id);
-					},
-					state === 'failed' ? 1000 : 8000,
-				);
+			if (state === 'disconnected' || state === 'failed') {
+				clearTimeout(peer.restartTimer);
+				peer.restartTimer = undefined;
+				this.scheduleRecovery(id, peer, state === 'failed' ? 1000 : 8000);
 			}
 		};
 		return peer;
+	}
+
+	private scheduleRecovery(id: string, peer: Peer, delay: number) {
+		if (this.closed || peer.restartTimer) return;
+		peer.restartTimer = setTimeout(() => {
+			peer.restartTimer = undefined;
+			if (
+				this.closed ||
+				this.peers.get(id) !== peer ||
+				peer.connection.connectionState === 'connected' ||
+				peer.connection.connectionState === 'closed'
+			)
+				return;
+			if (peer.restarts < 2) {
+				this.retry(id);
+			} else {
+				this.callbacks.onConnectionState(id, 'failed');
+				this.callbacks.onError(
+					'A participant could not connect. Try reconnecting or switching networks.',
+				);
+			}
+		}, delay);
 	}
 
 	private async offer(id: string, peer: Peer, restart = false) {

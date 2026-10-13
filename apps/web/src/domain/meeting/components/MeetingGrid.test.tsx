@@ -43,11 +43,11 @@ function participants(count = 5, sharing = true): Participant[] {
 	}));
 }
 function stream() {
-	return {
+	return Object.assign(new EventTarget(), {
 		getVideoTracks: () => [],
 		getAudioTracks: () => [],
 		getTracks: () => [],
-	} as unknown as MediaStream;
+	}) as unknown as MediaStream;
 }
 function props(records = participants()) {
 	return {

@@ -3,7 +3,10 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { MeetingMesh } from './mesh';
 
 class FakeStream {
-	tracks: MediaStreamTrack[] = [];
+	tracks: MediaStreamTrack[];
+	constructor(tracks: MediaStreamTrack[] = []) {
+		this.tracks = [...tracks];
+	}
 	getTracks() {
 		return this.tracks;
 	}
@@ -23,9 +26,10 @@ class FakeConnection {
 	signalingState = 'stable';
 	connectionState = 'new';
 	remoteDescription: RTCSessionDescriptionInit | null = null;
+	localDescription: RTCSessionDescriptionInit | null = null;
 	ontrack: ((event: RTCTrackEvent) => void) | null = null;
 	onicecandidate = null;
-	onconnectionstatechange = null;
+	onconnectionstatechange: (() => void) | null = null;
 	senders: {
 		replaceTrack: ReturnType<typeof vi.fn>;
 		setStreams: ReturnType<typeof vi.fn>;
@@ -64,6 +68,7 @@ class FakeConnection {
 	setLocalDescription = vi
 		.fn()
 		.mockImplementation(async (description: RTCSessionDescriptionInit) => {
+			this.localDescription = description;
 			this.signalingState =
 				description.type === 'offer' ? 'have-local-offer' : 'stable';
 		});
@@ -125,7 +130,10 @@ beforeEach(() => {
 	vi.stubGlobal('RTCPeerConnection', FakeConnection);
 	vi.stubGlobal('MediaStream', FakeStream);
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+	vi.useRealTimers();
+	vi.unstubAllGlobals();
+});
 
 it('only the lower ID offers and repeated presence snapshots do not create extra peers', async () => {
 	const lowCallbacks = callbacks();
@@ -271,4 +279,74 @@ it('routes incoming screen tracks into a separate stream and cleans up both stre
 	mesh.close();
 	expect(camera.stop).toHaveBeenCalledOnce();
 	expect(screen.stop).toHaveBeenCalledOnce();
+});
+
+it('publishes a fresh stream when audio arrives after video', async () => {
+	const events = callbacks();
+	const mesh = new MeetingMesh(highId, new MediaStream(), events);
+	await mesh.receive(
+		signal(lowId, highId, { type: 'offer', sdp: 'a=ice-ufrag:test' }),
+	);
+	const connection = FakeConnection.instances[0];
+	const camera = {
+		id: 'camera',
+		kind: 'video',
+		stop: vi.fn(),
+	} as unknown as MediaStreamTrack;
+	const audio = {
+		id: 'audio',
+		kind: 'audio',
+		stop: vi.fn(),
+	} as unknown as MediaStreamTrack;
+	connection.ontrack?.({
+		track: camera,
+		transceiver: connection.transceivers[1],
+	} as unknown as RTCTrackEvent);
+	connection.ontrack?.({
+		track: audio,
+		transceiver: connection.transceivers[0],
+	} as unknown as RTCTrackEvent);
+	const first = events.onStream.mock.calls[0][1] as MediaStream;
+	const second = events.onStream.mock.calls[1][1] as MediaStream;
+	expect(second).not.toBe(first);
+	expect(first.getTracks()).toEqual([camera]);
+	expect(second.getTracks()).toEqual([camera, audio]);
+	mesh.close();
+});
+
+it('recovers stalled initial negotiation and exposes failure after bounded retries', async () => {
+	vi.useFakeTimers();
+	const events = callbacks();
+	const mesh = new MeetingMesh(lowId, new MediaStream(), events);
+	mesh.reconcile([participant(lowId), participant(highId)]);
+	await vi.advanceTimersByTimeAsync(20_000);
+	const connection = FakeConnection.instances[0];
+	// No answer has arrived: resend the pending offer instead of doing nothing.
+	expect(events.sendSignal).toHaveBeenCalledTimes(2);
+	expect(connection.createOffer).toHaveBeenCalledTimes(1);
+	await vi.advanceTimersByTimeAsync(40_000);
+	expect(events.sendSignal).toHaveBeenCalledTimes(3);
+	expect(events.onConnectionState).toHaveBeenLastCalledWith(highId, 'failed');
+	expect(events.onError).toHaveBeenCalledOnce();
+	mesh.close();
+});
+
+it('restarts stalled ICE after an answer and cancels recovery once connected', async () => {
+	vi.useFakeTimers();
+	const events = callbacks();
+	const mesh = new MeetingMesh(lowId, new MediaStream(), events);
+	mesh.reconcile([participant(lowId), participant(highId)]);
+	await vi.advanceTimersByTimeAsync(0);
+	await mesh.receive(
+		signal(highId, lowId, { type: 'answer', sdp: 'a=ice-ufrag:test' }),
+	);
+	await vi.advanceTimersByTimeAsync(20_000);
+	const connection = FakeConnection.instances[0];
+	expect(connection.createOffer).toHaveBeenLastCalledWith({ iceRestart: true });
+	connection.connectionState = 'connected';
+	connection.onconnectionstatechange?.();
+	await vi.advanceTimersByTimeAsync(60_000);
+	expect(connection.createOffer).toHaveBeenCalledTimes(2);
+	expect(events.onError).not.toHaveBeenCalled();
+	mesh.close();
 });

@@ -12,9 +12,9 @@ const participants = ['Self', 'Alex', 'Sam'].map((displayName, index) => ({
 	cameraEnabled: false,
 }));
 const streams = {
-	'0': {} as MediaStream,
-	'1': {} as MediaStream,
-	'2': {} as MediaStream,
+	'0': new EventTarget() as MediaStream,
+	'1': new EventTarget() as MediaStream,
+	'2': new EventTarget() as MediaStream,
 };
 const props = { participants, selfId: '0', streams, audioOutputId: 'default' };
 const setSinkId = vi.fn().mockResolvedValue(undefined);
@@ -100,7 +100,7 @@ it('cleans up departed participants and replaced streams', () => {
 	const { rerender, unmount } = render(<MeetingAudio {...props} />);
 	const alex = screen.getByLabelText('Alex audio') as HTMLAudioElement;
 	const sam = screen.getByLabelText('Sam audio') as HTMLAudioElement;
-	const replacement = {} as MediaStream;
+	const replacement = new EventTarget() as MediaStream;
 	rerender(
 		<MeetingAudio {...props} streams={{ ...streams, '1': replacement }} />,
 	);
@@ -117,4 +117,22 @@ it('cleans up departed participants and replaced streams', () => {
 	expect(screen.queryByLabelText('Alex audio')).toBeNull();
 	unmount();
 	expect(sam.srcObject).toBeNull();
+});
+
+it('retries playback when tracks arrive on the same stream and removes listeners on departure', async () => {
+	const { unmount } = render(<MeetingAudio {...props} />);
+	await waitFor(() => expect(screen.queryByRole('button')).toBeNull());
+	vi.mocked(HTMLMediaElement.prototype.play).mockClear();
+	streams['1'].dispatchEvent(new Event('addtrack'));
+	expect(HTMLMediaElement.prototype.play).toHaveBeenCalledOnce();
+	await waitFor(() => expect(screen.queryByRole('button')).toBeNull());
+	unmount();
+	streams['1'].dispatchEvent(new Event('addtrack'));
+	expect(HTMLMediaElement.prototype.play).toHaveBeenCalledOnce();
+});
+
+it('falls back to the default speaker when a saved output is unavailable', async () => {
+	setSinkId.mockRejectedValueOnce(new Error('Output unavailable'));
+	render(<MeetingAudio {...props} audioOutputId="missing-speaker" />);
+	await waitFor(() => expect(setSinkId).toHaveBeenCalledWith(''));
 });

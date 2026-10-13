@@ -53,17 +53,39 @@ function RemoteAudio({
 		let active = true;
 		audio.srcObject = stream;
 		setBlocked(false);
-		void audio.play().catch(() => {
-			if (active) setBlocked(true);
-		});
+		const play = () => {
+			void audio.play().then(
+				() => {
+					if (active) setBlocked(false);
+				},
+				(error: unknown) => {
+					// Track changes can interrupt an earlier play request without
+					// meaning that the browser has blocked autoplay.
+					if (
+						active &&
+						!(error instanceof DOMException && error.name === 'AbortError')
+					)
+						setBlocked(true);
+				},
+			);
+		};
+		// The mesh preserves stream identity while adding remote tracks.
+		stream.addEventListener('addtrack', play);
+		audio.addEventListener('canplay', play);
+		play();
 		const output = audio as HTMLMediaElement & {
 			setSinkId?: (id: string) => Promise<void>;
 		};
 		void output
 			.setSinkId?.(audioOutputId === 'default' ? '' : audioOutputId)
-			.catch(() => {});
+			.catch(() => {
+				// A saved output may disappear when moving between devices.
+				if (active) void output.setSinkId?.('').catch(() => {});
+			});
 		return () => {
 			active = false;
+			stream.removeEventListener('addtrack', play);
+			audio.removeEventListener('canplay', play);
 			audio.srcObject = null;
 		};
 	}, [stream, audioOutputId]);
