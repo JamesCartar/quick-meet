@@ -121,7 +121,9 @@ export function useLocalMedia(previewEnabled: boolean) {
 		const next = { ...previous, [preferenceKey]: deviceId };
 		if (kind === 'audiooutput') {
 			const targets = Array.from(
-				document.querySelectorAll<HTMLVideoElement>('video:not([muted])'),
+				document.querySelectorAll<HTMLMediaElement>(
+					'audio, video:not([muted])',
+				),
 			);
 			const sinkId = deviceId === 'default' ? '' : deviceId;
 			try {

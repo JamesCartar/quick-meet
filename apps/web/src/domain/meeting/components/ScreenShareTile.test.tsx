@@ -50,5 +50,28 @@ it('leaves remote shared screens unobscured with no stop-sharing button', () => 
 		screen.queryByRole('button', { name: 'Stop sharing screen' }),
 	).toBeNull();
 	expect(container.querySelector('[class~="bg-zinc-950/75"]')).toBeNull();
-	expect(screen.getByText("Sam's screen")).toBeTruthy();
+	const badge = screen.getByText("Sam's screen");
+	expect(badge.parentElement?.classList.contains('bg-black/55')).toBe(true);
+	expect(badge.parentElement?.classList.contains('text-white')).toBe(true);
+});
+
+it('uses compact responsive stop controls in thumbnails but normal controls on the main tile', () => {
+	const props = {
+		displayName: 'Alex',
+		stream: {} as MediaStream,
+		local: true,
+		onStopSharing: vi.fn(),
+	};
+	const { rerender } = render(<ScreenShareTile {...props} compact />);
+	const button = screen.getByRole('button', { name: 'Stop sharing screen' });
+	expect(button.classList.contains('h-8')).toBe(true);
+	expect(button.classList.contains('@max-[320px]/tile:h-6')).toBe(true);
+	expect(button.classList.contains('@max-[120px]/tile:size-7')).toBe(true);
+	expect(button.getAttribute('title')).toBe('Stop sharing screen');
+	rerender(<ScreenShareTile {...props} />);
+	expect(
+		screen
+			.getByRole('button', { name: 'Stop sharing screen' })
+			.classList.contains('h-11'),
+	).toBe(true);
 });

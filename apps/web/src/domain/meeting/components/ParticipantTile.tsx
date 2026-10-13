@@ -1,6 +1,6 @@
 import type { Participant } from '@meet/contracts/meeting';
-import { LoaderCircle, RefreshCw, Volume2 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { LoaderCircle, RefreshCw } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 import { cn } from '@/common/lib/utils';
 import { Avatar, AvatarFallback } from '@/shared/components/ui/avatar';
 import { Button } from '@/shared/components/ui/button';
@@ -13,8 +13,8 @@ type Props = {
 	local: boolean;
 	connectionState?: RTCPeerConnectionState;
 	onRetry: () => void;
-	audioOutputId?: string;
 	streamRevision?: number;
+	compact?: boolean;
 };
 
 export function ParticipantTile({
@@ -23,8 +23,8 @@ export function ParticipantTile({
 	local,
 	connectionState,
 	onRetry,
-	audioOutputId = 'default',
 	streamRevision = 0,
+	compact = false,
 }: Props) {
 	const speaking = useSpeaking(
 		stream,
@@ -32,7 +32,6 @@ export function ParticipantTile({
 		streamRevision,
 	);
 	const videoRef = useRef<HTMLVideoElement>(null);
-	const [autoplayBlocked, setAutoplayBlocked] = useState(false);
 	const cameraVisible =
 		participant.cameraEnabled &&
 		Boolean(
@@ -57,35 +56,12 @@ export function ParticipantTile({
 	useEffect(() => {
 		const video = videoRef.current;
 		if (!video) return;
-		let active = true;
 		video.srcObject = stream;
-		setAutoplayBlocked(false);
-		if (stream)
-			void video.play().catch(() => {
-				if (active && !local) setAutoplayBlocked(true);
-			});
-		const mediaElement = video as HTMLMediaElement & {
-			setSinkId?: (deviceId: string) => Promise<void>;
-		};
-		if (!local && mediaElement.setSinkId) {
-			void mediaElement
-				.setSinkId(audioOutputId === 'default' ? '' : audioOutputId)
-				.catch(() => {});
-		}
+		if (stream) void video.play().catch(() => {});
 		return () => {
-			active = false;
 			video.srcObject = null;
 		};
-	}, [stream, local, audioOutputId, streamRevision]);
-
-	const enableAudio = async () => {
-		try {
-			await videoRef.current?.play();
-			setAutoplayBlocked(false);
-		} catch {
-			setAutoplayBlocked(true);
-		}
-	};
+	}, [stream, streamRevision]);
 
 	return (
 		<section
@@ -96,57 +72,97 @@ export function ParticipantTile({
 			}
 			className="relative size-full overflow-hidden rounded-xl border border-white/10 bg-zinc-900"
 		>
+			{/* Audio stays independent of paginated video tiles. */}
 			<video
 				ref={videoRef}
 				autoPlay
 				playsInline
-				muted={local}
+				muted
 				aria-label={`${participant.displayName} video`}
 				className={cn(
-					'absolute inset-0 size-full object-cover',
+					'absolute inset-0 size-full object-contain',
 					local && '-scale-x-100',
 					!cameraVisible && 'opacity-0',
 				)}
 			/>
 			{!cameraVisible && (
-				<div className="absolute inset-0 flex flex-col items-center justify-center gap-3 pt-8">
-					<Avatar className="size-16 sm:size-24">
-						<AvatarFallback className="bg-zinc-800 text-2xl font-medium text-zinc-100 sm:text-3xl">
+				<div
+					className={cn(
+						'absolute inset-0 flex flex-col items-center justify-center gap-3 pt-8 @max-[320px]/tile:gap-2 @max-[320px]/tile:pt-4 @max-[90px]/tile:pt-6',
+						compact && 'gap-2 pt-4',
+						failed &&
+							'@max-[480px]/tile:pt-6 @max-[480px]/tile:pb-6 @max-[320px]/tile:pt-6',
+						compact && failed && 'pt-6 pb-6',
+					)}
+				>
+					<Avatar
+						className={cn(
+							'size-16 sm:size-24 @max-[480px]/tile:size-10 @max-[320px]/tile:size-8 @max-[120px]/tile:size-4 @max-[90px]/tile:size-3',
+							compact && 'size-10 sm:size-10',
+							failed &&
+								'@max-[320px]/tile:size-5 @max-[160px]/tile:size-3 @max-[90px]/tile:hidden',
+						)}
+					>
+						<AvatarFallback
+							className={cn(
+								'bg-zinc-800 text-2xl font-medium text-zinc-100 sm:text-3xl @max-[480px]/tile:text-sm @max-[320px]/tile:text-xs @max-[120px]/tile:text-[10px] @max-[90px]/tile:text-[6px]',
+								compact && 'text-sm sm:text-sm',
+								failed &&
+									'@max-[320px]/tile:text-[9px] @max-[160px]/tile:text-[6px]',
+							)}
+						>
 							{initials}
 						</AvatarFallback>
 					</Avatar>
 					{(connecting || failed) && (
-						<p className="text-xs text-zinc-400">
+						<p
+							className={cn(
+								'text-xs text-zinc-400 @max-[320px]/tile:sr-only',
+								compact && 'sr-only',
+							)}
+						>
 							{connecting ? 'Connecting…' : 'Connection interrupted'}
 						</p>
 					)}
 				</div>
 			)}
 			{connecting && (
-				<div className="absolute right-3 top-3 rounded-full bg-black/60 p-2 text-white">
+				<div
+					className={cn(
+						'absolute right-3 bottom-3 rounded-full bg-black/60 p-2 text-white @max-[320px]/tile:right-1 @max-[320px]/tile:bottom-1 @max-[320px]/tile:p-1 @max-[120px]/tile:right-1 @max-[120px]/tile:bottom-px @max-[120px]/tile:p-0.5',
+						compact && 'right-2 bottom-2 p-1',
+					)}
+				>
 					<LoaderCircle
-						className="size-4 animate-spin"
+						className={cn(
+							'size-4 animate-spin @max-[320px]/tile:size-3 @max-[120px]/tile:size-2',
+							compact && 'size-3',
+						)}
 						aria-label="Connecting"
 					/>
 				</div>
 			)}
 			{failed && (
-				<div className="absolute inset-x-3 bottom-3 flex justify-center">
-					<Button size="sm" variant="secondary" onClick={onRetry}>
-						<RefreshCw /> Reconnect
-					</Button>
-				</div>
-			)}
-			{autoplayBlocked && (
-				<div className="absolute inset-x-3 bottom-3 flex justify-center">
+				<div
+					className={cn(
+						'absolute inset-x-3 bottom-3 flex justify-center @max-[320px]/tile:inset-x-1 @max-[320px]/tile:bottom-1 @max-[90px]/tile:bottom-px',
+						compact && 'inset-x-1 bottom-1 @max-[90px]/tile:bottom-px',
+					)}
+				>
 					<Button
 						size="sm"
 						variant="secondary"
-						onClick={() => {
-							void enableAudio();
-						}}
+						className={cn(
+							'max-w-full @max-[480px]/tile:h-6 @max-[480px]/tile:gap-1 @max-[480px]/tile:px-2 @max-[480px]/tile:text-[10px] @max-[480px]/tile:[&_svg]:size-3 @max-[320px]/tile:h-5 @max-[320px]/tile:gap-1 @max-[320px]/tile:px-1 @max-[320px]/tile:text-[9px] @max-[320px]/tile:[&_svg]:size-3 @max-[90px]/tile:h-4 @max-[90px]/tile:w-6',
+							compact &&
+								'h-6 max-w-full gap-1 px-1 text-[9px] [&_svg]:size-3 @max-[320px]/tile:h-5',
+						)}
+						aria-label="Reconnect"
+						title="Reconnect"
+						onClick={onRetry}
 					>
-						<Volume2 /> Play audio
+						<RefreshCw />{' '}
+						<span className="@max-[90px]/tile:hidden">Reconnect</span>
 					</Button>
 				</div>
 			)}
@@ -155,7 +171,7 @@ export function ParticipantTile({
 				microphoneEnabled={participant.microphoneEnabled}
 				speaking={speaking}
 				local={local}
-				connecting={connecting}
+				compact={compact}
 			/>
 		</section>
 	);
