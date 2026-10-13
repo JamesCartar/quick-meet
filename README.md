@@ -1,17 +1,17 @@
 # Quick Meet
 
-Quick Meet is a small browser-based video meeting app for teams. Open the app, check your camera and microphone, and join a shared meeting—no account or room code required.
+Quick Meet is a small browser-based video meeting app for teams. Open the app, check your camera and microphone, and join a shared meeting, no account or room code required.
 
 Each meeting supports up to five participants. Audio and video use direct WebRTC peer connections. The Node.js API manages participant presence and WebRTC signaling over native WebSockets.
 
 ## Features
 
-- Camera and microphone preview before joining.
-- Microphone and camera controls.
-- Live participant tiles with speaking indicators.
-- Editable display name and remembered media preferences.
-- Responsive layout for desktop and mobile.
-- Leave and rejoin support.
+- **Screen sharing & focus:** present alongside camera feeds and pin any participant or shared screen, with paginated sidebar thumbnails.
+- **Adaptive meeting layouts:** responsive galleries for desktop and mobile, plus fullscreen viewing.
+- **In-call collaboration:** live chat with participant mentions, clickable links, and emoji reactions.
+- **Live presence cues:** join chimes, speaking indicators, and smooth voice-activated ripples around camera-off avatars, with reduced-motion support.
+- **Flexible device selection:** switch cameras, microphones, and supported speaker outputs while keeping preferences between sessions.
+- **Connection resilience:** TURN relay support, automatic connection recovery, and refreshed short-lived relay credentials.
 
 ## Preview
 
