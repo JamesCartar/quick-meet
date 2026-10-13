@@ -5,6 +5,7 @@ import { getMeetingError } from '../lib/media';
 import { meetingService } from '../services';
 import { useLocalMedia } from './useLocalMedia';
 import { useMeetingPresence } from './useMeetingPresence';
+import { useParticipantJoinSound } from './useParticipantJoinSound';
 import { usePeerConnections } from './usePeerConnections';
 import { useScreenShare } from './useScreenShare';
 
@@ -57,6 +58,12 @@ export function useMeeting() {
 		onExpired,
 		screen.sharing,
 	);
+	const prepareJoinSound = useParticipantJoinSound(
+		presence.participants,
+		session?.participant.id,
+		presence.connected && presence.snapshotReady,
+		local.devicePreferences.audioOutputId,
+	);
 	const participants = useMemo(() => {
 		if (!session) return presence.participants;
 		const self = {
@@ -82,6 +89,7 @@ export function useMeeting() {
 
 	const join = async (displayName: string, options: MediaState) => {
 		if (joining.current || sessionId.current) return;
+		prepareJoinSound();
 		joining.current = true;
 		const version = ++joinVersion.current;
 		const id = crypto.randomUUID();

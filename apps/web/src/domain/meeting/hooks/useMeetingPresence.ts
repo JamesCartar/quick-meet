@@ -18,17 +18,25 @@ export function useMeetingPresence(
 	const [records, setRecords] = useState<Participants>({});
 	const [now, setNow] = useState(Date.now());
 	const [connected, setConnected] = useState(false);
+	const [snapshotReady, setSnapshotReady] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const clockOffset = useRef(0);
 	const lastSuccess = useRef(Date.now());
 
 	useEffect(() => {
 		const unsubscribeParticipants = meetingService.subscribeToParticipants(
-			setRecords,
+			(participants) => {
+				setRecords(participants);
+				setSnapshotReady(true);
+			},
 			(failure) => setError(failure.message),
 		);
-		const unsubscribeConnection =
-			meetingService.subscribeToConnection(setConnected);
+		const unsubscribeConnection = meetingService.subscribeToConnection(
+			(isConnected) => {
+				setConnected(isConnected);
+				setSnapshotReady(false);
+			},
+		);
 		const timer = setInterval(() => setNow(Date.now()), 5000);
 		return () => {
 			unsubscribeParticipants();
@@ -105,5 +113,5 @@ export function useMeetingPresence(
 		[records, now],
 	);
 
-	return { participants, connected, error };
+	return { participants, connected, snapshotReady, error };
 }

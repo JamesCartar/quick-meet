@@ -21,30 +21,32 @@ export function ScreenShareTile({
 	compact = false,
 }: Props) {
 	const videoRef = useRef<HTMLVideoElement>(null);
+	const screenVisible = Boolean(
+		stream?.getVideoTracks().some((track) => track.readyState === 'live'),
+	);
 	// biome-ignore lint/correctness/useExhaustiveDependencies: local track replacement keeps the stream identity stable.
 	useEffect(() => {
 		const video = videoRef.current;
 		if (!video) return;
-		video.srcObject = stream;
-		if (stream) void video.play().catch(() => {});
+		video.srcObject = screenVisible ? stream : null;
+		if (screenVisible) void video.play().catch(() => {});
 		return () => {
 			video.srcObject = null;
 		};
-	}, [stream, streamRevision]);
+	}, [stream, streamRevision, screenVisible]);
 
 	return (
 		<section
 			aria-label={`${displayName}'s shared screen${local ? ', you' : ''}`}
 			className="relative size-full overflow-hidden rounded-xl border border-white/10 bg-zinc-950"
 		>
-			{!stream && (
+			{!screenVisible && (
 				<div className="absolute inset-0 flex items-center justify-center text-sm text-zinc-400">
 					Connecting to shared screen…
 				</div>
 			)}
 			<video
 				ref={videoRef}
-				autoPlay
 				playsInline
 				muted
 				aria-label={`${displayName} screen share`}

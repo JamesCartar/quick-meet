@@ -3,6 +3,12 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { ScreenShareTile } from './ScreenShareTile';
 
+function screenStream() {
+	return {
+		getVideoTracks: () => [{ readyState: 'live' }],
+	} as unknown as MediaStream;
+}
+
 beforeEach(() => {
 	vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
 });
@@ -14,7 +20,7 @@ afterEach(() => {
 it('dims only the local preview and centers a pill button that stops sharing', async () => {
 	const user = userEvent.setup();
 	const onStopSharing = vi.fn();
-	const stream = {} as MediaStream;
+	const stream = screenStream();
 	render(
 		<ScreenShareTile
 			displayName="Alex"
@@ -41,7 +47,7 @@ it('leaves remote shared screens unobscured with no stop-sharing button', () => 
 	const { container } = render(
 		<ScreenShareTile
 			displayName="Sam"
-			stream={{} as MediaStream}
+			stream={screenStream()}
 			local={false}
 			onStopSharing={vi.fn()}
 		/>,
@@ -55,10 +61,27 @@ it('leaves remote shared screens unobscured with no stop-sharing button', () => 
 	expect(badge.parentElement?.classList.contains('text-white')).toBe(true);
 });
 
+it('waits without starting a media load when a shared screen has no video track', () => {
+	const stream = { getVideoTracks: () => [] } as unknown as MediaStream;
+	render(
+		<ScreenShareTile
+			displayName="Sam"
+			stream={stream}
+			local={false}
+			onStopSharing={vi.fn()}
+		/>,
+	);
+	const video = screen.getByLabelText('Sam screen share') as HTMLVideoElement;
+	expect(video.srcObject).toBeNull();
+	expect(video.autoplay).toBe(false);
+	expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
+	expect(screen.getByText('Connecting to shared screen…')).toBeTruthy();
+});
+
 it('uses compact responsive stop controls in thumbnails but normal controls on the main tile', () => {
 	const props = {
 		displayName: 'Alex',
-		stream: {} as MediaStream,
+		stream: screenStream(),
 		local: true,
 		onStopSharing: vi.fn(),
 	};

@@ -11,10 +11,15 @@ const participants = ['Self', 'Alex', 'Sam'].map((displayName, index) => ({
 	microphoneEnabled: true,
 	cameraEnabled: false,
 }));
+function audioStream() {
+	return Object.assign(new EventTarget(), {
+		getAudioTracks: () => [{ readyState: 'live' }],
+	}) as unknown as MediaStream;
+}
 const streams = {
-	'0': new EventTarget() as MediaStream,
-	'1': new EventTarget() as MediaStream,
-	'2': new EventTarget() as MediaStream,
+	'0': audioStream(),
+	'1': audioStream(),
+	'2': audioStream(),
 };
 const props = { participants, selfId: '0', streams, audioOutputId: 'default' };
 const setSinkId = vi.fn().mockResolvedValue(undefined);
@@ -100,7 +105,7 @@ it('cleans up departed participants and replaced streams', () => {
 	const { rerender, unmount } = render(<MeetingAudio {...props} />);
 	const alex = screen.getByLabelText('Alex audio') as HTMLAudioElement;
 	const sam = screen.getByLabelText('Sam audio') as HTMLAudioElement;
-	const replacement = new EventTarget() as MediaStream;
+	const replacement = audioStream();
 	rerender(
 		<MeetingAudio {...props} streams={{ ...streams, '1': replacement }} />,
 	);
@@ -128,6 +133,35 @@ it('retries playback when tracks arrive on the same stream and removes listeners
 	await waitFor(() => expect(screen.queryByRole('button')).toBeNull());
 	unmount();
 	streams['1'].dispatchEvent(new Event('addtrack'));
+	expect(HTMLMediaElement.prototype.play).toHaveBeenCalledOnce();
+});
+
+it('detaches muted audio and resumes playback when the microphone turns on', () => {
+	const { rerender } = render(<MeetingAudio {...props} />);
+	const alex = screen.getByLabelText('Alex audio') as HTMLAudioElement;
+	expect(alex.autoplay).toBe(false);
+	rerender(
+		<MeetingAudio
+			{...props}
+			participants={participants.map((p) =>
+				p.id === '1' ? { ...p, microphoneEnabled: false } : p,
+			)}
+		/>,
+	);
+	expect(alex.srcObject).toBeNull();
+	rerender(<MeetingAudio {...props} />);
+	expect(alex.srcObject).toBe(streams['1']);
+});
+
+it('does not play an empty or video-only stream while waiting for remote audio', () => {
+	const empty = Object.assign(new EventTarget(), {
+		getAudioTracks: () => [],
+	}) as unknown as MediaStream;
+	render(<MeetingAudio {...props} streams={{ ...streams, '1': empty }} />);
+	expect(
+		(screen.getByLabelText('Alex audio') as HTMLAudioElement).srcObject,
+	).toBeNull();
+	// Only Sam has a usable audio stream.
 	expect(HTMLMediaElement.prototype.play).toHaveBeenCalledOnce();
 });
 

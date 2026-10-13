@@ -1,0 +1,66 @@
+/* Percent-based rings follow the avatar at every tile/container size. */
+.meeting-speaking-halo {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	border-radius: 50%;
+	opacity: 0;
+	transition: opacity 280ms ease-out;
+}
+
+.meeting-speaking-halo[data-active="true"] {
+	opacity: 1;
+}
+
+.meeting-speaking-halo::before,
+.meeting-speaking-halo::after {
+	content: "";
+	position: absolute;
+	inset: -22%;
+	border: 1.5px solid oklch(0.78 0.1 245 / 32%);
+	border-radius: inherit;
+	background: oklch(0.78 0.1 245 / 7%);
+	animation: meeting-speaking-ripple 1800ms cubic-bezier(0.2, 0.6, 0.3, 1)
+		infinite;
+	animation-play-state: paused;
+}
+
+.meeting-speaking-halo::after {
+	animation-delay: -900ms;
+}
+
+.meeting-speaking-halo[data-active="true"]::before,
+.meeting-speaking-halo[data-active="true"]::after {
+	animation-play-state: running;
+}
+
+@keyframes meeting-speaking-ripple {
+	0% {
+		transform: scale(0.7);
+		opacity: 0;
+	}
+	20% {
+		opacity: 0.8;
+	}
+	100% {
+		transform: scale(1.18);
+		opacity: 0;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.meeting-speaking-halo {
+		transition: none;
+	}
+
+	.meeting-speaking-halo::before,
+	.meeting-speaking-halo::after {
+		animation: none;
+		transform: none;
+		opacity: 0.6;
+	}
+
+	.meeting-speaking-halo::after {
+		display: none;
+	}
+}

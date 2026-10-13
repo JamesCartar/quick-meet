@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback } from '@/shared/components/ui/avatar';
 import { Button } from '@/shared/components/ui/button';
 import { useSpeaking } from '../hooks/useSpeaking';
 import { ParticipantBadge } from './ParticipantBadge';
+import './ParticipantTile.css';
 
 type Props = {
 	participant: Participant;
@@ -56,12 +57,12 @@ export function ParticipantTile({
 	useEffect(() => {
 		const video = videoRef.current;
 		if (!video) return;
-		video.srcObject = stream;
-		if (stream) void video.play().catch(() => {});
+		video.srcObject = cameraVisible ? stream : null;
+		if (cameraVisible) void video.play().catch(() => {});
 		return () => {
 			video.srcObject = null;
 		};
-	}, [stream, streamRevision]);
+	}, [stream, streamRevision, cameraVisible]);
 
 	return (
 		<section
@@ -75,7 +76,6 @@ export function ParticipantTile({
 			{/* Audio stays independent of paginated video tiles. */}
 			<video
 				ref={videoRef}
-				autoPlay
 				playsInline
 				muted
 				aria-label={`${participant.displayName} video`}
@@ -95,25 +95,42 @@ export function ParticipantTile({
 						compact && failed && 'pt-6 pb-6',
 					)}
 				>
-					<Avatar
+					<div
 						className={cn(
-							'size-16 sm:size-24 @max-[480px]/tile:size-10 @max-[320px]/tile:size-8 @max-[120px]/tile:size-4 @max-[90px]/tile:size-3',
-							compact && 'size-10 sm:size-10',
-							failed &&
-								'@max-[320px]/tile:size-5 @max-[160px]/tile:size-3 @max-[90px]/tile:hidden',
+							'relative isolate shrink-0',
+							failed && '@max-[90px]/tile:hidden',
 						)}
 					>
-						<AvatarFallback
+						<span
+							aria-hidden="true"
+							className="meeting-speaking-halo"
+							data-active={
+								speaking &&
+								participant.microphoneEnabled &&
+								!connecting &&
+								!failed
+							}
+						/>
+						<Avatar
 							className={cn(
-								'bg-zinc-800 text-2xl font-medium text-zinc-100 sm:text-3xl @max-[480px]/tile:text-sm @max-[320px]/tile:text-xs @max-[120px]/tile:text-[10px] @max-[90px]/tile:text-[6px]',
-								compact && 'text-sm sm:text-sm',
+								'relative z-10 size-16 sm:size-24 @max-[480px]/tile:size-10 @max-[320px]/tile:size-8 @max-[120px]/tile:size-4 @max-[90px]/tile:size-3',
+								compact && 'size-10 sm:size-10',
 								failed &&
-									'@max-[320px]/tile:text-[9px] @max-[160px]/tile:text-[6px]',
+									'@max-[320px]/tile:size-5 @max-[160px]/tile:size-3 @max-[90px]/tile:hidden',
 							)}
 						>
-							{initials}
-						</AvatarFallback>
-					</Avatar>
+							<AvatarFallback
+								className={cn(
+									'bg-zinc-800 text-2xl font-medium text-zinc-100 sm:text-3xl @max-[480px]/tile:text-sm @max-[320px]/tile:text-xs @max-[120px]/tile:text-[10px] @max-[90px]/tile:text-[6px]',
+									compact && 'text-sm sm:text-sm',
+									failed &&
+										'@max-[320px]/tile:text-[9px] @max-[160px]/tile:text-[6px]',
+								)}
+							>
+								{initials}
+							</AvatarFallback>
+						</Avatar>
+					</div>
 					{(connecting || failed) && (
 						<p
 							className={cn(

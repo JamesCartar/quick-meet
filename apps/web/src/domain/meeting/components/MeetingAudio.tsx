@@ -28,6 +28,7 @@ export function MeetingAudio({
 					<RemoteAudio
 						key={participant.id}
 						displayName={participant.displayName}
+						microphoneEnabled={participant.microphoneEnabled}
 						stream={streams[participant.id]}
 						audioOutputId={audioOutputId}
 					/>
@@ -38,10 +39,12 @@ export function MeetingAudio({
 
 function RemoteAudio({
 	displayName,
+	microphoneEnabled,
 	stream,
 	audioOutputId,
 }: {
 	displayName: string;
+	microphoneEnabled: boolean;
 	stream: MediaStream;
 	audioOutputId: string;
 }) {
@@ -51,8 +54,15 @@ function RemoteAudio({
 		const audio = ref.current;
 		if (!audio) return;
 		let active = true;
-		audio.srcObject = stream;
 		setBlocked(false);
+		if (
+			!microphoneEnabled ||
+			!stream.getAudioTracks().some((track) => track.readyState === 'live')
+		) {
+			audio.srcObject = null;
+			return;
+		}
+		audio.srcObject = stream;
 		const play = () => {
 			void audio.play().then(
 				() => {
@@ -88,7 +98,7 @@ function RemoteAudio({
 			audio.removeEventListener('canplay', play);
 			audio.srcObject = null;
 		};
-	}, [stream, audioOutputId]);
+	}, [stream, audioOutputId, microphoneEnabled]);
 
 	const retry = async () => {
 		try {
@@ -101,7 +111,7 @@ function RemoteAudio({
 	return (
 		<>
 			{/* biome-ignore lint/a11y/useMediaCaption: This is live WebRTC audio; the meeting does not provide a caption stream. */}
-			<audio ref={ref} autoPlay hidden aria-label={`${displayName} audio`} />
+			<audio ref={ref} hidden aria-label={`${displayName} audio`} />
 			{blocked && (
 				<Button
 					className="pointer-events-auto max-w-full rounded-full"

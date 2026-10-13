@@ -47,19 +47,19 @@ export function DevicePreview({
 	useEffect(() => {
 		const video = videoRef.current;
 		if (!video) return;
-		video.srcObject = stream;
-		if (stream && media.cameraEnabled) void video.play().catch(() => {});
+		// An empty or camera-off stream leaves Chrome waiting for video forever.
+		video.srcObject = cameraVisible ? stream : null;
+		if (cameraVisible) void video.play().catch(() => {});
 		return () => {
 			video.srcObject = null;
 		};
-	}, [stream, media.cameraEnabled]);
+	}, [stream, cameraVisible]);
 
 	return (
 		<div className="relative flex aspect-video min-h-56 w-full min-w-0 items-center justify-center overflow-hidden sm:min-h-60 rounded-2xl bg-zinc-900 text-zinc-100">
 			<video
 				ref={videoRef}
 				muted
-				autoPlay
 				playsInline
 				aria-label="Camera preview"
 				className={cn(

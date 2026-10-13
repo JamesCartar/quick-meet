@@ -1,6 +1,6 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { DevicePreview } from './DevicePreview';
 
 const props = {
@@ -11,8 +11,12 @@ const props = {
 	onToggleMedia: vi.fn().mockResolvedValue(undefined),
 };
 
+beforeEach(() => {
+	vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+});
 afterEach(() => {
 	cleanup();
+	vi.restoreAllMocks();
 	vi.clearAllMocks();
 });
 
@@ -64,4 +68,27 @@ it('prevents toggling during media setup or joining', async () => {
 	await user.click(screen.getByRole('button', { name: 'Mute microphone' }));
 	await user.click(screen.getByRole('button', { name: 'Turn off camera' }));
 	expect(props.onToggleMedia).not.toHaveBeenCalled();
+});
+
+it('does not load an empty preview and detaches video when the camera turns off', () => {
+	const tracks: { readyState: string }[] = [];
+	const stream = { getVideoTracks: () => tracks } as unknown as MediaStream;
+	const { rerender } = render(<DevicePreview {...props} stream={stream} />);
+	const video = screen.getByLabelText('Camera preview') as HTMLVideoElement;
+	expect(video.srcObject).toBeNull();
+	expect(video.autoplay).toBe(false);
+	expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
+	tracks.push({ readyState: 'live' });
+	rerender(<DevicePreview {...props} stream={stream} />);
+	expect(video.srcObject).toBe(stream);
+	expect(HTMLMediaElement.prototype.play).toHaveBeenCalledOnce();
+	rerender(
+		<DevicePreview
+			{...props}
+			stream={stream}
+			media={{ microphoneEnabled: true, cameraEnabled: false }}
+		/>,
+	);
+	expect(video.srcObject).toBeNull();
+	expect(HTMLMediaElement.prototype.play).toHaveBeenCalledOnce();
 });
