@@ -68,7 +68,9 @@ it.each(['idle', 'joining', 'left', 'joined'])(
 		const { container } = render(<MeetingPage />);
 		const shell = container.querySelector('.bg-background');
 		expect(shell?.classList.contains('dark')).toBe(true);
-		expect(shell?.classList.contains('overflow-hidden')).toBe(status === 'joined');
+		expect(shell?.classList.contains('overflow-hidden')).toBe(
+			status === 'joined',
+		);
 	},
 );
 
