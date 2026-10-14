@@ -43,6 +43,12 @@ Pin a presentation to focus on it while keeping participants in the sidebar.
 
 ![Pinned shared screen with participant thumbnails and pagination](docs/screenshots/pinned-screen-share.png)
 
+### Participant sidebar
+
+See who is in the call, search participants, and check their microphone and camera status.
+
+![Meeting with the participant sidebar open, showing participant search and device status](docs/screenshots/participants-sidebar.png)
+
 ### Meeting chat
 
 Send messages, mention teammates, and react without leaving the call.
