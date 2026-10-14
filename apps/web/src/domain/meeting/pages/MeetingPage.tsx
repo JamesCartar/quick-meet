@@ -113,13 +113,13 @@ function MeetingPage() {
 		<TooltipProvider>
 			<div
 				className={cn(
-					'flex min-h-svh flex-col bg-background text-foreground',
-					joined && 'dark h-svh overflow-hidden',
+					'dark flex min-h-svh flex-col bg-background text-foreground',
+					joined && 'h-svh overflow-hidden',
 				)}
 			>
 				<Toaster
 					position="top-right"
-					theme={joined ? 'dark' : 'light'}
+					theme="dark"
 					offset={{ top: 88, right: 16 }}
 					mobileOffset={{ top: 80, right: 8, left: 8 }}
 				/>

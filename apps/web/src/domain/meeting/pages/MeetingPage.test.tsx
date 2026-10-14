@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, expect, it, vi } from 'vitest';
 import MeetingPage from './MeetingPage';
 
+const meetingState = vi.hoisted(() => ({ status: 'joined' }));
 const fullscreen = vi.hoisted(() => ({
 	fullscreen: false,
 	supported: true,
@@ -14,7 +15,7 @@ vi.mock('../hooks/useMeetingFullscreen', () => ({
 }));
 vi.mock('../hooks/useMeeting', () => ({
 	useMeeting: () => ({
-		status: 'joined',
+		status: meetingState.status,
 		selfId: 'self',
 		participants: [{ id: 'self', displayName: 'Alex' }],
 		availableDevices: [],
@@ -55,9 +56,21 @@ vi.mock('../components/JoinMeetingForm', () => ({
 
 afterEach(() => {
 	cleanup();
+	meetingState.status = 'joined';
 	fullscreen.fullscreen = false;
 	fullscreen.toggle.mockClear();
 });
+
+it.each(['idle', 'joining', 'left', 'joined'])(
+	'keeps the meeting theme dark in the %s state without locking preview scrolling',
+	(status) => {
+		meetingState.status = status;
+		const { container } = render(<MeetingPage />);
+		const shell = container.querySelector('.bg-background');
+		expect(shell?.classList.contains('dark')).toBe(true);
+		expect(shell?.classList.contains('overflow-hidden')).toBe(status === 'joined');
+	},
+);
 
 it('toggles fullscreen on double-click both normally and when already fullscreen', async () => {
 	const user = userEvent.setup();
